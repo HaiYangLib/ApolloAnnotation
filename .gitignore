@@ -111,26 +111,28 @@ tools/FlameGraph
 *.app
 
 # 一些大文件(主要是某些模型文件)
-modules/perception/testdata/camera/lib/lane/postprocessor/darkSCNN/data/darkSCNN/deploy.caffemodel
-modules/perception/testdata/camera/lib/lane/postprocessor/denseline/data/denseline/deploy.caffemodel
-modules/perception/testdata/camera/lib/lane/detector/darkSCNN/data/darkSCNN/deploy.caffemodel
-modules/perception/testdata/camera/lib/lane/detector/denseline/data/denseline/deploy.caffemodel
-modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/dark_SCNN_vpt_8x_lighter_iter_160000.caffemodel
+
+*.caffemodel
+*.model
+*.caffemodel.metadata
+*.onnx
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
-modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/dark_SCNN_8x_lighter_iter_160000.caffemodel
-modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/deploy.caffemodel
-modules/perception/production/data/perception/camera/models/lane_detector/denseline/deploy.caffemodel
+modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
+modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/3d-r4-half/params
+modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/3d-yolo/params
+modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
 
 
-<<<<<<< HEAD
+
+
 *.so.*
 *.a.*
 
-=======
->>>>>>> 4c0907f1af2503ac574429de76a04f547d0e1aef
 # log
 *.INFO
 *.log.*
 
 cmake-build-debug/
 build/
+
+*.zip
