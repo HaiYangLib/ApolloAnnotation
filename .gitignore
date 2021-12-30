@@ -125,6 +125,18 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 
 
+
+modules/planning/data/model/*.pt
+
+modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
+modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
+modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/3d-r4-half/params
+modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/3d-yolo/params
+modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
+
+
+
+
 *.so.*
 *.a.*
 
@@ -136,3 +148,4 @@ cmake-build-debug/
 build/
 
 *.zip
+
