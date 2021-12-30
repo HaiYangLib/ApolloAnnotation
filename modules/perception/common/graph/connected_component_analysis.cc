@@ -30,7 +30,7 @@ namespace common {
 /**
  * 匈牙利匹配算法核心代码
  * 
- * graph[m]={...},表示与m由匹配关系的点
+ * nb_graph是个邻接表
  * 
  * components[index]={index,...},表示与节点index有连接关系或间接连接关系的节点
  * 
@@ -52,7 +52,7 @@ void ConnectedComponentAnalysis(const std::vector<std::vector<int>>& graph,
 
   /**
    * component保存的是与节点index有连接关系或间接连接关系的节点
-   * 这种访问顺序属于层次遍历
+   * 邻接表的BFS访问
    * **/
   for (int index = 0; index < num_item; ++index) {
     if (visited[index]) {

@@ -148,12 +148,17 @@ bool ContiArsTracker::Init() {
 }
 
 /**
- * 步骤1：
+ * 步骤1：进行点的Track
+ * 步骤2：修正时间，并将track点添加到tracked_frame中
+ *  
  * **/
 bool ContiArsTracker::Track(const base::Frame &detected_frame,
                             const TrackerOptions &options,
                             base::FramePtr tracked_frame) {
+  // 步骤1                               
   TrackObjects(detected_frame);
+
+  // 步骤2
   CollectTrackedFrame(tracked_frame);
   return true;
 }
@@ -162,13 +167,18 @@ bool ContiArsTracker::Track(const base::Frame &detected_frame,
  * 步骤1：关联匹配
  * 代码：matcher_->Match(radar_tracks, radar_frame, matcher_options,
  *    &assignments,&unassigned_tracks, &unassigned_objects);
- * 步骤2：更新匹配的
+ * assignments是匹配到的点
+ * 
+ * 步骤2：更新能匹配到的，主要是更新那些点的时间戳
  * 代码：UpdateAssignedTracks(radar_frame, assignments);
- * 步骤3：更新未匹配的
+ * 
+ * 步骤3：更新未匹配的，时间上大于0.06的设置死亡
  * 代码： UpdateUnassignedTracks(radar_frame, unassigned_tracks);
- * 步骤4：删除丢失的
+ * 
+ * 步骤4：删除死亡的点
  * 代码： DeleteLostTracks();
- * 步骤5：创建新的
+ * 
+ * 步骤5：增加一些新的track点
  * 代码：CreateNewTracks(radar_frame, unassigned_objects);
  * **/
 void ContiArsTracker::TrackObjects(const base::Frame &radar_frame) {
@@ -195,7 +205,7 @@ void ContiArsTracker::TrackObjects(const base::Frame &radar_frame) {
   matcher_->Match(radar_tracks, radar_frame, matcher_options, &assignments,
                   &unassigned_tracks, &unassigned_objects);
 
-  // 步骤2
+  // 步骤2 
   UpdateAssignedTracks(radar_frame, assignments);
   // 超过0.06秒设置为死亡
   // 步骤3
@@ -224,6 +234,7 @@ void ContiArsTracker::UpdateUnassignedTracks(
     if (radar_tracks[unassigned_tracks[i]]->GetObs() != nullptr) {
       double radar_time = radar_tracks[unassigned_tracks[i]]->GetTimestamp();
       double time_diff = fabs(timestamp - radar_time);
+      // s_tracking_time_win_ = 0.06
       if (time_diff > s_tracking_time_win_) {
         radar_tracks[unassigned_tracks[i]]->SetDead();
       }
@@ -254,6 +265,8 @@ void ContiArsTracker::CollectTrackedFrame(base::FramePtr tracked_frame) {
   auto &objects = tracked_frame->objects;
   const auto &radar_tracks = track_manager_->GetTracks();
   for (size_t i = 0; i < radar_tracks.size(); ++i) {
+
+    //  tracked_times_ > s_tracked_times_threshold_ = 3
     if (radar_tracks[i]->ConfirmTrack()) {
       base::ObjectPtr object = base::ObjectPtr(new base::Object());
       const base::ObjectPtr &track_object = radar_tracks[i]->GetObs();

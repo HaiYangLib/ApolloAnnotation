@@ -77,8 +77,6 @@ docs/demo_guide/*.record
 # Flamegraph files
 tools/FlameGraph
 
-
-
 # Prerequisites
 *.d
 
@@ -122,3 +120,11 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/dark_SCNN_8x_lighter_iter_160000.caffemodel
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/deploy.caffemodel
 modules/perception/production/data/perception/camera/models/lane_detector/denseline/deploy.caffemodel
+
+
+# log
+*.INFO
+*.log.*
+
+cmake-build-debug/
+build/

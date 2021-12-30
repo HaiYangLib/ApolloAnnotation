@@ -189,7 +189,11 @@ bool HMMatcher::RefinedTrack(const base::ObjectPtr &track_object,
  * 步骤2：用表示距离关系表示代价矩阵global_costs
  * 代码： (*global_costs)(i, j) = association_mat[i][j];
  * 
- * 步骤3：
+ * 步骤3：进行匹配，在内部使用了Munkres分配算法
+ * 
+ * 步骤4：追加assignments
+ * 
+ * 步骤5：更更新unassigned_tracks，unassigned_objects
  * **/
 void HMMatcher::TrackObjectPropertyMatch(
     const std::vector<RadarTrackPtr> &radar_tracks,
@@ -211,6 +215,7 @@ void HMMatcher::TrackObjectPropertyMatch(
   for (size_t i = 0; i < association_mat.size(); ++i) {
     association_mat[i].resize(unassigned_objects->size(), 0);
   }
+
   // 得到距离关系
   // 步骤1
   ComputeAssociationMat(radar_tracks, radar_frame, *unassigned_tracks,
@@ -255,6 +260,8 @@ void HMMatcher::TrackObjectPropertyMatch(
    * BaseMatcher::GetMaxMatchDistance()=2.5
    * BaseMatcher::GetBoundMatchDistance()=10.0
    * 
+   * hungarian_matcher_中的global_costs_保存着用距离表示的代价
+   * (*global_costs)(i, j) = association_mat[i][j];
    * **/
   // 步骤3
   hungarian_matcher_.Match(
@@ -290,7 +297,8 @@ void HMMatcher::TrackObjectPropertyMatch(
 }
 
 /**
- * 计算关联矩阵
+ * 
+ * association_mat[i][j]表示i与j的距离
  * **/
 void HMMatcher::ComputeAssociationMat(
     const std::vector<RadarTrackPtr> &radar_tracks,
@@ -299,8 +307,10 @@ void HMMatcher::ComputeAssociationMat(
     const std::vector<size_t> &unassigned_objects,
     std::vector<std::vector<double>> *association_mat) {
   double frame_timestamp = radar_frame.timestamp;
+
   for (size_t i = 0; i < unassigned_tracks.size(); ++i) {
     for (size_t j = 0; j < unassigned_objects.size(); ++j) {
+
       const base::ObjectPtr &track_object =
           radar_tracks[unassigned_tracks[i]]->GetObs();
 

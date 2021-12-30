@@ -23,6 +23,9 @@ namespace apollo {
 namespace perception {
 namespace inference {
 
+/**
+ * 少了“CaffeNet”
+ * **/
 Inference *CreateInferenceByName(const std::string &name,
                                  const std::string &proto_file,
                                  const std::string &weight_file,

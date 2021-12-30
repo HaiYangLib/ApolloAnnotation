@@ -73,7 +73,9 @@ class LaneDetectionComponent : public apollo::cyber::Component<> {
  private:
   void OnReceiveImage(const std::shared_ptr<apollo::drivers::Image>& in_message,
                       const std::string& camera_name);
+
   void OnMotionService(const MotionServiceMsgType& in_message);
+
   int InitConfig();
   int InitSensorInfo();
   int InitAlgorithmPlugin();
@@ -81,6 +83,7 @@ class LaneDetectionComponent : public apollo::cyber::Component<> {
   int InitProjectMatrix();
   int InitMotionService();
   int InitCameraListeners();
+
   void SetCameraHeightAndPitch();
 
   int InternalProc(

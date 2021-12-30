@@ -22,6 +22,19 @@ namespace apollo {
 namespace perception {
 namespace inference {
 
+/**
+ * 对于车道线检测
+ *
+ * net_file_=modules/perception/production/data/perception/
+ *                camera/models/lane_detector/darkSCNN/deploy.prototxt
+ *
+ *
+ * model_file_=modules/perception/production/data/perception/
+ *                camera/models/lane_detector/darkSCNN/deploy.caffemodel
+ * outputs_={"softmax","fc_out"}
+ * 
+ * **/
+
 CaffeNet::CaffeNet(const std::string &net_file, const std::string &model_file,
                    const std::vector<std::string> &outputs)
     : net_file_(net_file), model_file_(model_file), output_names_(outputs) {}
@@ -40,13 +53,16 @@ bool CaffeNet::Init(const std::map<std::string, std::vector<int>> &shapes) {
   if (net_ == nullptr) {
     return false;
   }
+
   net_->CopyTrainedLayersFrom(model_file_);
+
   for (auto tmp : shapes) {
     auto blob = net_->blob_by_name(tmp.first);
     if (blob != nullptr) {
       blob->Reshape(tmp.second);
     }
   }
+
   net_->Reshape();
   for (auto name : output_names_) {
     auto caffe_blob = net_->blob_by_name(name);
@@ -57,6 +73,7 @@ bool CaffeNet::Init(const std::map<std::string, std::vector<int>> &shapes) {
     blob.reset(new apollo::perception::base::Blob<float>(caffe_blob->shape()));
     blobs_.insert(std::make_pair(name, blob));
   }
+
   for (auto name : input_names_) {
     auto caffe_blob = net_->blob_by_name(name);
     if (caffe_blob == nullptr) {
@@ -86,6 +103,11 @@ std::shared_ptr<apollo::perception::base::Blob<float>> CaffeNet::get_blob(
   return iter->second;
 }
 
+
+/**
+ * 将输入blob中的数据从blob拷贝到caffe_blob
+ * 
+ * **/
 bool CaffeNet::reshape() {
   for (auto name : input_names_) {
     auto blob = this->get_blob(name);
@@ -101,11 +123,23 @@ bool CaffeNet::reshape() {
   return true;
 }
 
+
+/**
+ * 步骤1：拷贝输入数据到模型
+ * 步骤2：推理
+ * 步骤3：将模型中的输出结果数据拷贝出来
+ * **/
 void CaffeNet::Infer() {
   if (gpu_id_ >= 0) {
     caffe::Caffe::SetDevice(gpu_id_);
     caffe::Caffe::set_mode(caffe::Caffe::GPU);
   }
+
+  /**
+   * 将输入blob中的数据从blob拷贝到caffe_blob
+   * 输入blob中的数据一般由inference::ResizeGPU函数得到
+   * **/
+  // 步骤1
   this->reshape();
   // If `out_blob->mutable_cpu_data()` is invoked outside,
   // HEAD will be set to CPU, and `out_blob->mutable_gpu_data()`
@@ -120,11 +154,14 @@ void CaffeNet::Infer() {
     }
   }
 
+  // 步骤2
   net_->Forward();
+  
   for (auto name : output_names_) {
     auto blob = get_blob(name);
     auto caffe_blob = net_->blob_by_name(name);
     if (caffe_blob != nullptr && blob != nullptr) {
+      // 步骤3
       blob->Reshape(caffe_blob->shape());
       cudaMemcpy(blob->mutable_gpu_data(), caffe_blob->gpu_data(),
                  caffe_blob->count() * sizeof(float), cudaMemcpyDeviceToDevice);

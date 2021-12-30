@@ -751,6 +751,9 @@ void PointPillars::Preprocess(const float* in_points_array,
   }
 }
 
+/**
+ * 为什么推理的前部分使用torch，后部分使用TensorRT ?
+ * **/
 void PointPillars::DoInference(const float* in_points_array,
                                const int in_num_points,
                                std::vector<float>* out_detections,

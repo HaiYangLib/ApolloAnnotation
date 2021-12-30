@@ -15,11 +15,10 @@
  *****************************************************************************/
 
 /******************************************************************************
-* AnnotationAuthor  : HaiYang
-* Email   : hanhy20@mails.jlu.edu.cn
-* Desc    : annotation for apollo
-******************************************************************************/
-
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
 
 #pragma once
 
@@ -30,7 +29,6 @@
 #include <vector>
 
 #include "cyber/common/log.h"
-
 #include "modules/perception/common/graph/connected_component_analysis.h"
 #include "modules/perception/common/graph/hungarian_optimizer.h"
 
@@ -57,7 +55,7 @@ class GatedHungarianMatcher {
    * would not alloc new memory, if the resizing size is smaller than the
    * size reserved. */
   const SecureMat<T>& global_costs() const { return global_costs_; }
-  
+
   SecureMat<T>* mutable_global_costs() { return &global_costs_; }
 
   void Match(T cost_thresh, OptimizeFlag opt_flag,
@@ -138,6 +136,14 @@ void GatedHungarianMatcher<T>::Match(
         unassigned_cols);
 }
 
+/**
+ * Match函数中在进行Munkres算法前做了一些预处理，目的可能是为了提高效率
+ * 主要做了连通子图的划分，row_components[i]和col_components[i]组成了一张连通子图
+ *
+ * 步骤1：得到连通子图
+ * 步骤2：对连通子图使用Munkres算法
+ * 步骤3：更新unassigned_rows和unassigned_cols
+ * **/
 template <typename T>
 void GatedHungarianMatcher<T>::Match(
     T cost_thresh, T bound_value, OptimizeFlag opt_flag,
@@ -160,9 +166,12 @@ void GatedHungarianMatcher<T>::Match(
   std::vector<std::vector<size_t>> col_components;
 
   /**
+   *
    *  row_components[i]={...}，表示与节点i有连接关系或间接连接关系的节点，即关于节点i的连通子图
    *  col_components同理
+   *
    * **/
+  // 步骤1
   this->ComputeConnectedComponents(&row_components, &col_components);
   CHECK_EQ(row_components.size(), col_components.size());
 
@@ -174,9 +183,11 @@ void GatedHungarianMatcher<T>::Match(
     /**
      * 对连通子图分别进行匈牙利匹配 最小距离
      * **/
+    // 步骤2
     this->OptimizeConnectedComponent(row_components[i], col_components[i]);
   }
 
+  // 步骤3
   this->GenerateUnassignedData(unassigned_rows, unassigned_cols);
 }
 
@@ -201,13 +212,18 @@ void GatedHungarianMatcher<T>::MatchInit() {
 }
 
 /**
- * 匈牙利匹配核心算法
+ *
  * 步骤1：生成nb_graph，nb_graph的尺寸为rows_num_ + cols_num_
- *  nb_graph[m]={...},表示与m由匹配关系的点
- * 
- * 步骤2：函数ConnectedComponentAnalysis会进行层次遍历找到连接关系
+ * nb_graph[m]={...},表示与m有连接关系的点，
+ * 是否有连接关系通过下面代码判断：
+ * is_valid_cost_(global_costs_(i, j)
+ *
+ * 步骤2：函数ConnectedComponentAnalysis会进行BFS遍历找到连接关系
+ *
  *  components[index]={index,...},表示与节点index有连接关系或间接连接关系的节点
- * 
+ *  即关于index的连通子图
+ *  也就是说每一个component都是一个连通字图
+ *
  * 步骤3：将索引下标还原，
  *  row_components[i]={...}，表示与节点i有连接关系或间接连接关系的节点
  *  col_components同理
@@ -225,15 +241,17 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
    * 这种方式生成的nb_graph很巧妙
    * 正常情况下，global_costs_(i, j）的i,j是
    * unassigned_tracks和 unassigned_objects对应的下标
-   * 
+   *
    * 有可能存在i=j的情况
    * nb_graph[i].push_back(static_cast<int>(rows_num_) + j);
    * nb_graph[j + rows_num_].push_back(i);
    * 人为地使j+rows_num_，将i和j区分开来，巧妙
    * 原先的i被分配到0,1,2,...rows_num_-1
    * 原先的j被分配到rows_num_，rows_num_+1，rows_num_+2，...rows_num_+cols_num_-1
-   * 
-   * nb_graph[m]={...},表示与m由匹配关系的点
+   *
+   * nb_graph[m]={...},表示与m有连接关系的点
+   *
+   * 看了好久才发现nb_graph是个邻接表（数据结构的东西忘完了）
    * **/
   // 步骤1
   for (size_t i = 0; i < rows_num_; ++i) {
@@ -249,18 +267,19 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
   std::vector<std::vector<int>> components;
 
   /**
-   * 函数ConnectedComponentAnalysis会进行层次遍历找到连接关系
-   * components[index]={index,...},表示与节点index有连接关系或间接连接关系的节点
+   * 函数ConnectedComponentAnalysis会对邻接表nb_graph进行BFS遍历找到连接关系
+   * components[index]={index,...},表示与节点index有连接关系或间接连接关系的节点，
+   * 即关于index的连通子图
    * **/
   // 步骤2
   ConnectedComponentAnalysis(nb_graph, &components);
 
-
+  // components.size()= graph.size()
   row_components->clear();
   row_components->resize(components.size());
   col_components->clear();
   col_components->resize(components.size());
-  
+
   for (size_t i = 0; i < components.size(); ++i) {
     for (size_t j = 0; j < components[i].size(); ++j) {
       /**
@@ -270,9 +289,11 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
 
       /**
        * 将索引下标还原，由于在步骤1中，重新分配了id(即下标)
-       * 
+       *
        * row_components[i]={...}，表示与节点i有连接关系或间接连接关系的节点
        * col_components同理
+       *
+       * 得到二分图？
        * **/
       // 步骤3
       if (id < static_cast<int>(rows_num_)) {
@@ -335,17 +356,21 @@ void GatedHungarianMatcher<T>::GenerateUnassignedData(
   const auto assignments = *assignments_ptr_;
   unassigned_rows->clear(), unassigned_rows->reserve(rows_num_);
   unassigned_cols->clear(), unassigned_cols->reserve(cols_num_);
+
   std::vector<bool> row_assignment_flags(rows_num_, false);
   std::vector<bool> col_assignment_flags(cols_num_, false);
+
   for (const auto& assignment : assignments) {
     row_assignment_flags[assignment.first] = true;
     col_assignment_flags[assignment.second] = true;
   }
+
   for (size_t i = 0; i < row_assignment_flags.size(); ++i) {
     if (!row_assignment_flags[i]) {
       unassigned_rows->push_back(i);
     }
   }
+
   for (size_t i = 0; i < col_assignment_flags.size(); ++i) {
     if (!col_assignment_flags[i]) {
       unassigned_cols->push_back(i);

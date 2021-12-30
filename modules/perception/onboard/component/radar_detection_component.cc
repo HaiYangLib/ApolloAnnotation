@@ -195,6 +195,7 @@ bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
   /**
    * Radar子模块的输出Topic
    * output_channel_name: "/perception/inner/PrefusedObjects"
+   * out_message是系列track到的点
    * **/
   writer_->Write(out_message);
   AINFO << "Send radar processing output message.";

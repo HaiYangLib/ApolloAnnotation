@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 #include "modules/perception/camera/app/lane_camera_perception.h"
 
 #include <algorithm>
@@ -47,13 +55,21 @@ bool LaneCameraPerception::Init(const CameraPerceptionInitOptions &options) {
   if (options.use_cyber_work_root) {
     work_root = GetCyberWorkRoot();
   }
+
+  /**
+   * config_file=
+   * "/apollo/modules/perception/production/conf/perception/camera/lane.pt"
+   * **/ 
   std::string config_file =
       GetAbsolutePath(options.root_dir, options.conf_file);
   config_file = GetAbsolutePath(work_root, config_file);
+
+
   ACHECK(cyber::common::GetProtoFromFile(config_file, &perception_param_))
       << "Read config failed: " << config_file;
   ACHECK(inference::CudaUtil::set_device_id(perception_param_.gpu_id()));
 
+  // lane_calibration_working_sensor_name_="front_6mm"
   lane_calibration_working_sensor_name_ =
       options.lane_calibration_working_sensor_name;
 
@@ -73,28 +89,68 @@ void LaneCameraPerception::InitLane(
   // Init lane
   CHECK_GT(perception_param.lane_param_size(), 0)
       << "Failed to include lane_param";
+
+  /**
+   * lane_param {
+   * lane_detector_param {
+   *   plugin_param {
+   *     name : "DarkSCNNLaneDetector"
+   *     root_dir : 
+   *            "/apollo/modules/perception/production/data/perception/
+   *                  camera/models/lane_detector/"
+   *     config_file : "config_darkSCNN.pt"
+   *   }
+   *   camera_name : "front_6mm"
+   * }
+   * lane_postprocessor_param {
+   *     name : "DarkSCNNLanePostprocessor"
+   *     root_dir : 
+   *            "/apollo/modules/perception/production/data/perception/
+   *                  camera/models/lane_postprocessor/darkSCNN/"
+   *     config_file : "config.pt"
+   * }
+   * }
+   * 
+   * **/    
   for (int i = 0; i < perception_param.lane_param_size(); ++i) {
     // Initialize lane detector
     const auto &lane_param = perception_param.lane_param(i);
     ACHECK(lane_param.has_lane_detector_param())
         << "Failed to include lane_detector_param.";
+
     LaneDetectorInitOptions lane_detector_init_options;
     const auto &lane_detector_param = lane_param.lane_detector_param();
+
     const auto &lane_detector_plugin_param = lane_detector_param.plugin_param();
+
+    // config_file : "config_darkSCNN.pt"
     lane_detector_init_options.conf_file =
         lane_detector_plugin_param.config_file();
+
     lane_detector_init_options.root_dir =
         GetAbsolutePath(work_root, lane_detector_plugin_param.root_dir());
+
+    // camera_name : "front_6mm"
     model = common::SensorManager::Instance()->GetUndistortCameraModel(
         lane_detector_param.camera_name());
+
     auto pinhole = static_cast<base::PinholeCameraModel *>(model.get());
+
+    // camera_name : "front_6mm"
     name_intrinsic_map_.insert(std::pair<std::string, Eigen::Matrix3f>(
         lane_detector_param.camera_name(), pinhole->get_intrinsic_params()));
+
+    // gpu_id: 0
     lane_detector_init_options.gpu_id = perception_param.gpu_id();
+
     lane_detector_init_options.base_camera_model = model;
+
     AINFO << "lane_detector_name: " << lane_detector_plugin_param.name();
+
+    // name : "DarkSCNNLaneDetector"
     lane_detector_.reset(BaseLaneDetectorRegisterer::GetInstanceByName(
         lane_detector_plugin_param.name()));
+
     ACHECK(lane_detector_ != nullptr);
     ACHECK(lane_detector_->Init(lane_detector_init_options))
         << "Failed to init: " << lane_detector_plugin_param.name();
@@ -103,21 +159,29 @@ void LaneCameraPerception::InitLane(
     // Initialize lane postprocessor
     const auto &lane_postprocessor_param =
         lane_param.lane_postprocessor_param();
+
     LanePostprocessorInitOptions postprocessor_init_options;
     postprocessor_init_options.detect_config_root =
         GetAbsolutePath(work_root, lane_detector_plugin_param.root_dir());
+
     postprocessor_init_options.detect_config_name =
         lane_detector_plugin_param.config_file();
+
     postprocessor_init_options.root_dir =
         GetAbsolutePath(work_root, lane_postprocessor_param.root_dir());
+
     postprocessor_init_options.conf_file =
         lane_postprocessor_param.config_file();
+
+    // name : "DarkSCNNLanePostprocessor"
     lane_postprocessor_.reset(
         BaseLanePostprocessorRegisterer::GetInstanceByName(
             lane_postprocessor_param.name()));
+
     ACHECK(lane_postprocessor_ != nullptr);
     ACHECK(lane_postprocessor_->Init(postprocessor_init_options))
         << "Failed to init: " << lane_postprocessor_param.name();
+
     AINFO << "lane_postprocessor: " << lane_postprocessor_->Name();
 
     // Init output file folder

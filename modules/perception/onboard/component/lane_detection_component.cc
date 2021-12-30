@@ -13,22 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 #include "modules/perception/onboard/component/lane_detection_component.h"
 
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 #include <iomanip>
 #include <iostream>
 #include <string>
 #include <tuple>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
-
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "absl/strings/str_cat.h"
-#include "yaml-cpp/yaml.h"
-
 #include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "cyber/time/clock.h"
@@ -38,6 +43,7 @@
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
 #include "modules/perception/onboard/common_flags/common_flags.h"
 #include "modules/perception/onboard/component/camera_perception_viz_message.h"
+#include "yaml-cpp/yaml.h"
 
 namespace apollo {
 namespace perception {
@@ -151,6 +157,7 @@ static bool LoadExtrinsics(const std::string &yaml_file,
   (*camera_extrinsic)(1, 3) = ty;
   (*camera_extrinsic)(2, 3) = tz;
   (*camera_extrinsic)(3, 3) = 1;
+
   return true;
 }
 
@@ -183,17 +190,62 @@ static bool GetProjectMatrix(
 
 LaneDetectionComponent::~LaneDetectionComponent() {}
 
+/**
+ * LaneDetectionComponent对应的dag文件：
+ * modules/perception/production/dag/dag_streaming_perception_lane.dag
+ * module_config {
+ * module_library :
+ *      "/apollo/bazel-bin/modules/perception/onboard/component/
+ *                        libperception_component_camera.so"
+ *
+ *  components {
+ *     class_name : "LaneDetectionComponent"
+ *     config {
+ *       name: "LaneComponent"
+ *       config_file_path:
+ *                    "/apollo/modules/perception/production/conf/
+ *                  perception/camera/lane_detection_component.config"
+ *       flag_file_path: "/apollo/modules/perception/production/conf/
+ *                          perception/perception_common.flag"
+ *       readers {
+ *           channel: "/apollo/perception/lane_status"
+ *         }
+ *     }
+ *   }
+ *
+ * }
+ *
+ *
+ * **/
 bool LaneDetectionComponent::Init() {
+  // 步骤1 根据配置文件初始化
   if (InitConfig() != cyber::SUCC) {
     AERROR << "InitConfig() failed.";
     return false;
   }
 
+  /**
+   * 
+   * modules/perception/proto/perception_lane.proto
+   * message PerceptionLanes {
+   *  optional apollo.common.Header header = 1;  // header
+   *  optional string source_topic = 2;          // which topic to get the frame
+   *  optional camera.CameraErrorCode error_code = 3
+   *      [default = ERROR_NONE];  // error code
+   *  optional camera.CameraCalibrator camera_calibrator = 4;
+   *  repeated camera.CameraLaneLine camera_laneline = 5;
+   * }
+   * 
+   * camera.CameraLaneLine在下面文件定义：
+   * modules/perception/proto/perception_camera.proto
+   * **/
+  // output_lanes_channel_name="/perception/lanes"
   writer_ = node_->CreateWriter<PerceptionLanes>(output_lanes_channel_name_);
   if (!EXEC_ALL_FUNS(LaneDetectionComponent, this,
                      LaneDetectionComponent::init_func_arry_)) {
     return false;
   }
+
   SetCameraHeightAndPitch();
 
   // Init visualizer
@@ -204,8 +256,19 @@ bool LaneDetectionComponent::Init() {
   double pitch_adj_degree = 0.0;
   double yaw_adj_degree = 0.0;
   double roll_adj_degree = 0.0;
+
   // load in lidar to imu extrinsic
   Eigen::Matrix4d ex_lidar2imu;
+
+  /**
+   * DEFINE_string(obs_sensor_intrinsic_path,
+   *           "/apollo/modules/perception/data/params",
+   *           "The intrinsics/extrinsics dir.");
+   * 
+   * "velodyne128_novatel_extrinsics.yaml"
+   * 
+   * lidar2imu的外参
+   * **/
   LoadExtrinsics(FLAGS_obs_sensor_intrinsic_path + "/" +
                      "velodyne128_novatel_extrinsics.yaml",
                  &ex_lidar2imu);
@@ -215,6 +278,7 @@ bool LaneDetectionComponent::Init() {
       camera_names_, visual_camera_, intrinsic_map_, extrinsic_map_,
       ex_lidar2imu, pitch_adj_degree, yaw_adj_degree, roll_adj_degree,
       image_height_, image_width_));
+
   homography_image2ground_ = visualize_.homography_im2car(visual_camera_);
   camera_lane_pipeline_->SetIm2CarHomography(homography_image2ground_);
 
@@ -224,6 +288,7 @@ bool LaneDetectionComponent::Init() {
       visualize_.SetDirectory(visual_debug_folder_);
     }
   }
+
   AINFO << "Init processes all succeed";
   return true;
 }
@@ -273,10 +338,13 @@ void LaneDetectionComponent::OnReceiveImage(
     const std::shared_ptr<apollo::drivers::Image> &message,
     const std::string &camera_name) {
   std::lock_guard<std::mutex> lock(mutex_);
+
+  // timestamp_offset : 0.0
   const double msg_timestamp = message->measurement_time() + timestamp_offset_;
   AINFO << "Enter LaneDetectionComponent::Proc(), camera_name: " << camera_name
         << " image ts: " << msg_timestamp;
   // timestamp should be almost monotonic
+  // ts_diff : 0.1
   if (last_timestamp_ - msg_timestamp > ts_diff_) {
     AINFO << "Received an old message. Last ts is " << std::setprecision(19)
           << last_timestamp_ << " current ts is " << msg_timestamp
@@ -299,11 +367,13 @@ void LaneDetectionComponent::OnReceiveImage(
   // protobuf msg
   std::shared_ptr<apollo::perception::PerceptionLanes> out_message(
       new (std::nothrow) apollo::perception::PerceptionLanes);
+
   apollo::common::ErrorCode error_code = apollo::common::OK;
 
   // prefused msg
   std::shared_ptr<SensorFrameMessage> prefused_message(new (std::nothrow)
                                                            SensorFrameMessage);
+
   if (InternalProc(message, camera_name, &error_code, prefused_message.get(),
                    out_message.get()) != cyber::SUCC) {
     AERROR << "InternalProc failed, error_code: " << error_code;
@@ -324,50 +394,111 @@ void LaneDetectionComponent::OnReceiveImage(
 
 int LaneDetectionComponent::InitConfig() {
   // the macro READ_CONF would return cyber::FAIL if config not exists
+  /**
+   * LaneDetectionComponent模块对应的配置文件：
+   * modules/perception/production/conf/perception/camera/
+   *                  lane_detection_component.config
+   *
+   * camera_names: "front_6mm,front_12mm"
+   * input_camera_channel_names :
+   *    "/apollo/sensor/camera/front_6mm/image,/apollo/sensor/
+   *                      camera/front_12mm/image"
+   * timestamp_offset : 0.0
+   * camera_lane_perception_conf_dir :
+   *     "/apollo/modules/perception/production/conf/perception/camera"
+   * camera_lane_perception_conf_file : "lane.pt"
+   * frame_capacity : 20
+   * image_channel_num : 3
+   * enable_undistortion : false
+   * enable_visualization : false
+   * output_lanes_channel_name : "/perception/lanes"
+   * default_camera_pitch : 0.0
+   * default_camera_height : 1.5
+   * lane_calibration_working_sensor_name : "front_6mm"
+   * calibrator_method : "LaneLineCalibrator"
+   * calib_service_name : "OnlineCalibrationService"
+   * run_calib_service : true
+   * ts_diff : 0.1
+   * visual_debug_folder : "/apollo/debug_output"
+   * visual_camera : "front_6mm"
+   * write_visual_img : false
+   * **/
   apollo::perception::onboard::LaneDetection lane_detection_param;
   if (!GetProtoConfig(&lane_detection_param)) {
     AINFO << "load lane detection component proto param failed";
     return false;
   }
 
+  // camera_names_str= "front_6mm,front_12mm"
   std::string camera_names_str = lane_detection_param.camera_names();
+
+  /**
+   * camera_names_={"front_6mm","front_12mm"}
+   * **/
   boost::algorithm::split(camera_names_, camera_names_str,
                           boost::algorithm::is_any_of(","));
   if (camera_names_.size() != 2) {
     AERROR << "Now LaneDetectionComponent only support 2 cameras";
     return cyber::FAIL;
   }
-
+  /**
+   * input_camera_channel_names :
+   *    "/apollo/sensor/camera/front_6mm/image,/apollo/sensor/
+   *                      camera/front_12mm/image"
+   * */
   std::string input_camera_channel_names_str =
       lane_detection_param.input_camera_channel_names();
+
+  /**
+   * input_camera_channel_names_={ "/apollo/sensor/camera/front_6mm/image",
+   *                           "/apollo/sensor/camera/front_12mm/image"}
+   * **/
   boost::algorithm::split(input_camera_channel_names_,
                           input_camera_channel_names_str,
                           boost::algorithm::is_any_of(","));
+
   if (input_camera_channel_names_.size() != camera_names_.size()) {
     AERROR << "wrong input_camera_channel_names_.size(): "
            << input_camera_channel_names_.size();
     return cyber::FAIL;
   }
 
+  // camera_lane_perception_conf_dir :
+  //     "/apollo/modules/perception/production/conf/perception/camera"
   camera_perception_init_options_.root_dir =
       lane_detection_param.camera_lane_perception_conf_dir();
+
+  // camera_lane_perception_conf_file : "lane.pt"
   camera_perception_init_options_.conf_file =
       lane_detection_param.camera_lane_perception_conf_file();
+
+  // lane_calibration_working_sensor_name : "front_6mm"
   camera_perception_init_options_.lane_calibration_working_sensor_name =
       lane_detection_param.lane_calibration_working_sensor_name();
+
   camera_perception_init_options_.use_cyber_work_root = true;
   frame_capacity_ = lane_detection_param.frame_capacity();
+
   image_channel_num_ = lane_detection_param.image_channel_num();
+
   enable_undistortion_ = lane_detection_param.enable_undistortion();
+
   enable_visualization_ = lane_detection_param.enable_visualization();
+
   visual_debug_folder_ = lane_detection_param.visual_debug_folder();
   visual_camera_ = lane_detection_param.visual_camera();
+
+  // output_lanes_channel_name="/perception/lanes"
   output_lanes_channel_name_ = lane_detection_param.output_lanes_channel_name();
   default_camera_pitch_ =
       static_cast<float>(lane_detection_param.default_camera_pitch());
+
   default_camera_height_ =
       static_cast<float>(lane_detection_param.default_camera_height());
+
+  // ts_diff : 0.1    
   ts_diff_ = lane_detection_param.ts_diff();
+
   write_visual_img_ = lane_detection_param.write_visual_img();
 
   std::string format_str = R"(
@@ -417,9 +548,13 @@ int LaneDetectionComponent::InitSensorInfo() {
 
     std::string tf_camera_frame_id =
         sensor_manager->GetFrameId(camera_names_[i]);
+
     tf_camera_frame_id_map_[camera_names_[i]] = tf_camera_frame_id;
+
     std::shared_ptr<TransformWrapper> trans_wrapper(new TransformWrapper);
+    
     trans_wrapper->Init(tf_camera_frame_id);
+    
     camera2world_trans_wrapper_map_[camera_names_[i]] = trans_wrapper;
   }
 
@@ -447,6 +582,7 @@ int LaneDetectionComponent::InitSensorInfo() {
 
 int LaneDetectionComponent::InitAlgorithmPlugin() {
   camera_lane_pipeline_.reset(new camera::LaneCameraPerception);
+
   if (!camera_lane_pipeline_->Init(camera_perception_init_options_)) {
     AERROR << "camera_lane_pipeline_->Init() failed";
     return cyber::FAIL;
@@ -553,6 +689,12 @@ int LaneDetectionComponent::InitMotionService() {
 }
 
 int LaneDetectionComponent::InitCameraListeners() {
+
+  /**
+   *input_camera_channel_names :
+   *    "/apollo/sensor/camera/front_6mm/image,/apollo/sensor/
+   *                      camera/front_12mm/image"
+   * **/
   for (size_t i = 0; i < camera_names_.size(); ++i) {
     const std::string &camera_name = camera_names_[i];
     const std::string &channel_name = input_camera_channel_names_[i];

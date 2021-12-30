@@ -13,13 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+/******************************************************************************
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
+
 #include "modules/perception/camera/lib/lane/detector/darkSCNN/darkSCNN_lane_detector.h"
 
 #include <algorithm>
 #include <map>
 
 #include "cyber/common/file.h"
-
 #include "modules/perception/camera/common/util.h"
 #include "modules/perception/inference/inference_factory.h"
 #include "modules/perception/inference/utils/resize.h"
@@ -32,22 +37,66 @@ using apollo::cyber::common::GetAbsolutePath;
 using apollo::cyber::common::GetProtoFromFile;
 
 bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
+  /**
+   * proto_path="/apollo/modules/perception/production/data/perception/
+   *                camera/models/lane_detector/config_darkSCNN.pt"
+   *
+   * model_param {
+   *   model_name: "darkSCNN"
+   *   proto_file: "deploy.prototxt"
+   *   weight_file: "deploy.caffemodel"
+   *   input_offset_y: 312
+   *   input_offset_x: 0
+   *   crop_height: 768
+   *   crop_width: 1920
+   *   resize_height: 480
+   *   resize_width: 640
+   *   mean_b: 95
+   *   mean_g: 99
+   *   mean_r: 96
+   *   is_bgr: true
+   *   confidence_threshold: 0.95
+   *   vpt_mean_dx: 0.0
+   *   vpt_mean_dy: -77.284
+   *   vpt_std_dx: 103.109
+   *   vpt_std_dy: 95.273
+   *   model_type: "CaffeNet"
+   * }
+   *
+   * net_param {
+   *   seg_blob: "softmax"
+   *   vpt_blob: "fc_out"
+   *   input_blob: "data"
+   * }
+   * **/
   std::string proto_path = GetAbsolutePath(options.root_dir, options.conf_file);
   if (!GetProtoFromFile(proto_path, &darkscnn_param_)) {
     AINFO << "load proto param failed, root dir: " << options.root_dir;
     return false;
   }
+
   std::string param_str;
   google::protobuf::TextFormat::PrintToString(darkscnn_param_, &param_str);
   AINFO << "darkSCNN param: " << param_str;
 
   const auto model_param = darkscnn_param_.model_param();
+
   std::string model_root =
       GetAbsolutePath(options.root_dir, model_param.model_name());
+  /**
+   * proto_file=modules/perception/production/data/perception/
+   *                camera/models/lane_detector/darkSCNN/deploy.prototxt
+   * **/
   std::string proto_file =
       GetAbsolutePath(model_root, model_param.proto_file());
+
+  /**
+   * weight_file=modules/perception/production/data/perception/
+   *                camera/models/lane_detector/darkSCNN/deploy.caffemodel
+   * **/
   std::string weight_file =
       GetAbsolutePath(model_root, model_param.weight_file());
+
   AINFO << " proto_file: " << proto_file;
   AINFO << " weight_file: " << weight_file;
   AINFO << " model_root: " << model_root;
@@ -61,6 +110,7 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
     input_height_ = static_cast<uint16_t>(base_camera_model_->get_height());
     input_width_ = static_cast<uint16_t>(base_camera_model_->get_width());
   }
+
   ACHECK(input_width_ > 0) << "input width should be more than 0";
   ACHECK(input_height_ > 0) << "input height should be more than 0";
 
@@ -68,20 +118,47 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
   AINFO << "input_width: " << input_width_;
 
   // compute image provider parameters
+
+  /**
+   * input_offset_y: 312
+   * input_offset_x: 0
+   * **/
   input_offset_y_ = static_cast<uint16_t>(model_param.input_offset_y());
   input_offset_x_ = static_cast<uint16_t>(model_param.input_offset_x());
+  /**
+   * resize_height: 480
+   * resize_width: 640
+   * 
+   * 这个是DarkSCNN需要的输入尺寸
+   * **/
   resize_height_ = static_cast<uint16_t>(model_param.resize_height());
   resize_width_ = static_cast<uint16_t>(model_param.resize_width());
+
+  /**
+   *
+   * crop_height: 768
+   * crop_width: 1920
+   * 
+   * 车道线感兴趣区域
+   * **/
   crop_height_ = static_cast<uint16_t>(model_param.crop_height());
   crop_width_ = static_cast<uint16_t>(model_param.crop_width());
+
+  // confidence_threshold: 0.95
   confidence_threshold_lane_ = model_param.confidence_threshold();
 
   CHECK_LE(crop_height_, input_height_)
       << "crop height larger than input height";
   CHECK_LE(crop_width_, input_width_) << "crop width larger than input width";
 
+  // is_bgr: true
   if (model_param.is_bgr()) {
     data_provider_image_option_.target_color = base::Color::BGR;
+    /**
+     * mean_b: 95
+     * mean_g: 99
+     * mean_r: 96
+     * **/
     image_mean_[0] = model_param.mean_b();
     image_mean_[1] = model_param.mean_g();
     image_mean_[2] = model_param.mean_r();
@@ -91,7 +168,16 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
     image_mean_[1] = model_param.mean_g();
     image_mean_[2] = model_param.mean_b();
   }
+
   data_provider_image_option_.do_crop = true;
+  /**
+   * input_offset_y: 312
+   * input_offset_x: 0
+   * crop_height: 768
+   * crop_width: 1920
+   *
+   * 与感兴趣区域相关，车道线位于图像下方
+   * **/
   data_provider_image_option_.crop_roi.x = input_offset_x_;
   data_provider_image_option_.crop_roi.y = input_offset_y_;
   data_provider_image_option_.crop_roi.height = crop_height_;
@@ -101,9 +187,19 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
   cudaGetDeviceProperties(&prop, options.gpu_id);
   AINFO << "GPU: " << prop.name;
 
+  /**
+   * net_param {
+   *   seg_blob: "softmax"
+   *   vpt_blob: "fc_out"
+   * 
+   *   input_blob: "data"
+   * }
+   * */
   const auto net_param = darkscnn_param_.net_param();
   net_inputs_.push_back(net_param.input_blob());
   net_outputs_.push_back(net_param.seg_blob());
+
+  //  model_type: "CaffeNet"
   if (model_param.model_type() == "CaffeNet" && net_param.has_vpt_blob() &&
       net_param.vpt_blob().size() > 0) {
     net_outputs_.push_back(net_param.vpt_blob());
@@ -112,13 +208,24 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
   for (auto name : net_inputs_) {
     AINFO << "net input blobs: " << name;
   }
+
   for (auto name : net_outputs_) {
     AINFO << "net output blobs: " << name;
   }
 
   // initialize caffe net
+  // model_type: "CaffeNet"
   const auto &model_type = model_param.model_type();
   AINFO << "model_type: " << model_type;
+
+   /**
+   * proto_file=modules/perception/production/data/perception/
+   *                camera/models/lane_detector/darkSCNN/deploy.prototxt
+   * 
+   *
+   * weight_file=modules/perception/production/data/perception/
+   *                camera/models/lane_detector/darkSCNN/deploy.caffemodel
+   * **/
   cnnadapter_lane_.reset(
       inference::CreateInferenceByName(model_type, proto_file, weight_file,
                                        net_outputs_, net_inputs_, model_root));
@@ -127,13 +234,36 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
   cnnadapter_lane_->set_gpu_id(options.gpu_id);
   ACHECK(resize_width_ > 0) << "resize width should be more than 0";
   ACHECK(resize_height_ > 0) << "resize height should be more than 0";
+
+  /**
+   * caffe中的blob.shape={n,c,h,w}
+   * n张图片，图片为c通道，图片尺寸h,w
+   * 
+   * 代码shape = {1, 3, resize_height_, resize_width_}
+   * 与配置文件中的定义是一致的
+   * layer {
+   * name: "input"
+   * type: "Input"
+   * top: "data"
+   * input_param {
+   *   shape {
+   *     dim: 1
+   *     dim: 3
+   *     dim: 480
+   *     dim: 640
+   *   }
+   * }
+   * }
+   * **/
   std::vector<int> shape = {1, 3, resize_height_, resize_width_};
   std::map<std::string, std::vector<int>> input_reshape{
       {net_inputs_[0], shape}};
+
   AINFO << "input_reshape: " << input_reshape[net_inputs_[0]][0] << ", "
         << input_reshape[net_inputs_[0]][1] << ", "
         << input_reshape[net_inputs_[0]][2] << ", "
         << input_reshape[net_inputs_[0]][3];
+
   if (!cnnadapter_lane_->Init(input_reshape)) {
     AINFO << "net init fail.";
     return false;
@@ -148,8 +278,10 @@ bool DarkSCNNLaneDetector::Init(const LaneDetectorInitOptions &options) {
   auto output_blob = cnnadapter_lane_->get_blob(net_outputs_[0]);
   AINFO << net_outputs_[0] << " : " << output_blob->channels() << " "
         << output_blob->height() << " " << output_blob->width();
+
   lane_output_height_ = output_blob->height();
   lane_output_width_ = output_blob->width();
+  
   num_lanes_ = output_blob->channels();
 
   if (net_outputs_.size() > 1) {
@@ -174,11 +306,13 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
 
   auto start = std::chrono::high_resolution_clock::now();
   auto data_provider = frame->data_provider;
+
   if (input_width_ != data_provider->src_width()) {
     AERROR << "Input size is not correct: " << input_width_ << " vs "
            << data_provider->src_width();
     return false;
   }
+
   if (input_height_ != data_provider->src_height()) {
     AERROR << "Input size is not correct: " << input_height_ << " vs "
            << data_provider->src_height();
@@ -195,6 +329,7 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
   auto blob_channel = input_blob->channels();
   auto blob_height = input_blob->height();
   auto blob_width = input_blob->width();
+
   ADEBUG << "input_blob: " << blob_channel << " " << blob_height << " "
          << blob_width << std::endl;
 
@@ -202,18 +337,27 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
     AERROR << "height is not equal" << blob_height << " vs " << resize_height_;
     return false;
   }
+
   if (blob_width != resize_width_) {
     AERROR << "width is not equal" << blob_width << " vs " << resize_width_;
     return false;
   }
+
   ADEBUG << "image_blob: " << image_src_.blob()->shape_string();
   ADEBUG << "input_blob: " << input_blob->shape_string();
+
   // resize the cropped image into network input blob
+  /**
+   * 将图片image_src_拷贝到input_blob
+   * input_blob是模型的输入，为下下面的推理做准备
+   * 
+   * **/
   inference::ResizeGPU(
       image_src_, input_blob, static_cast<int>(crop_width_), 0,
       static_cast<float>(image_mean_[0]), static_cast<float>(image_mean_[1]),
       static_cast<float>(image_mean_[2]), false, static_cast<float>(1.0));
   ADEBUG << "resize gpu finish.";
+
   cudaDeviceSynchronize();
   cnnadapter_lane_->Infer();
   ADEBUG << "infer finish.";
@@ -227,6 +371,7 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
   const auto seg_blob = cnnadapter_lane_->get_blob(net_outputs_[0]);
   ADEBUG << "seg_blob: " << seg_blob->shape_string();
   std::vector<cv::Mat> masks;
+
   for (int i = 0; i < num_lanes_; ++i) {
     cv::Mat tmp(lane_output_height_, lane_output_width_, CV_32FC1);
     memcpy(tmp.data,
@@ -237,9 +382,11 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
     //            0);
     masks.push_back(tmp);
   }
+
   std::vector<int> cnt_pixels(13, 0);
   cv::Mat mask_color(lane_output_height_, lane_output_width_, CV_32FC1);
   mask_color.setTo(cv::Scalar(0));
+
   for (int c = 0; c < num_lanes_; ++c) {
     for (int h = 0; h < masks[c].rows; ++h) {
       for (int w = 0; w < masks[c].cols; ++w) {
@@ -250,6 +397,7 @@ bool DarkSCNNLaneDetector::Detect(const LaneDetectorOptions &options,
       }
     }
   }
+
   memcpy(lane_blob_->mutable_cpu_data(),
          reinterpret_cast<float *>(mask_color.data),
          lane_output_width_ * lane_output_height_ * sizeof(float));

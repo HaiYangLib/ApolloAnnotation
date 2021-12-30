@@ -19,8 +19,6 @@
 #include <boost/format.hpp>
 
 #include "absl/strings/str_cat.h"
-#include "yaml-cpp/yaml.h"
-
 #include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "cyber/time/clock.h"
@@ -30,6 +28,7 @@
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
 #include "modules/perception/onboard/common_flags/common_flags.h"
 #include "modules/perception/onboard/component/camera_perception_viz_message.h"
+#include "yaml-cpp/yaml.h"
 
 namespace apollo {
 namespace perception {
@@ -179,27 +178,48 @@ bool GetProjectMatrix(
 FusionCameraDetectionComponent::~FusionCameraDetectionComponent() {}
 
 /**
+ * FusionCameraDetectionComponent模块对应的dag文件
+ * modules/perception/production/dag/dag_streaming_perception_camera.dag
+ * 
+ *module_config {
+ *  module_library :
+ *       "/apollo/bazel-bin/modules/perception/onboard/component/
+ *                libperception_component_camera.so"
+ *  components {
+ *    class_name : "FusionCameraDetectionComponent"
+ *    config {
+ *      name: "FusionCameraComponent"
+ *      config_file_path:
+ *         "/apollo/modules/perception/production/conf/perception/
+ *                 camera/fusion_camera_detection_component.pb.txt"
+ *      flag_file_path:
+ *         "/apollo/modules/perception/production/conf/perception/
+ *                 perception_common.flag"
+ *    }
+ *  }
+ *}
+ *
+ *
  * 步骤1： 根据配置文件初始化相关成员变量
  * 代码： InitConfig() != cyber::SUCC
- * 
+ *
  * 步骤2：
- * 
+ *
  * 步骤3：
- * 
+ *
  * 步骤4：
- * 
+ *
  * 步骤5：
- * 
+ *
  * 步骤6：
- * 
+ *
  * 步骤7：output_obstacles_channel
- * 
+ *
  * 步骤8：
- * 
+ *
  * 步骤9：
  * **/
 bool FusionCameraDetectionComponent::Init() {
-
   // 步骤1 根据配置文件初始化一些成员变量
   if (InitConfig() != cyber::SUCC) {
     AERROR << "InitConfig() failed.";
@@ -214,7 +234,8 @@ bool FusionCameraDetectionComponent::Init() {
   sensorframe_writer_ =
       node_->CreateWriter<SensorFrameMessage>(prefused_channel_name_);
 
-  // camera_perception_viz_message_channel_name :"/perception/inner/camera_viz_msg"
+  // camera_perception_viz_message_channel_name
+  // :"/perception/inner/camera_viz_msg"
   camera_viz_writer_ = node_->CreateWriter<CameraPerceptionVizMessage>(
       camera_perception_viz_message_channel_name_);
 
@@ -378,6 +399,7 @@ void FusionCameraDetectionComponent::OnReceiveImage(
  * FusionCameraDetectionComponent的配置文件
  * "modules/perception/production/conf/perception/
  *      camera/fusion_camera_detection_component.pb.txt"
+ * 
  * camera_names: "front_6mm,front_12mm"
  * input_camera_channel_names : "/apollo/sensor/camera/front_6mm/image,
  *          /apollo/sensor/camera/front_12mm/image"
@@ -391,7 +413,8 @@ void FusionCameraDetectionComponent::OnReceiveImage(
  * enable_visualization : false
  * output_final_obstacles : true
  * output_obstacles_channel_name : "/perception/obstacles"
- * camera_perception_viz_message_channel_name : "/perception/inner/camera_viz_msg"
+ * camera_perception_viz_message_channel_name :
+ *             "/perception/inner/camera_viz_msg"
  * prefused_channel_name : "/perception/inner/PrefusedObjects"
  * default_camera_pitch : 0.0
  * default_camera_height : 1.5
@@ -407,16 +430,15 @@ void FusionCameraDetectionComponent::OnReceiveImage(
  * write_visual_img : false
  * enable_cipv : false
  * debug_level : 0
- 
- * 
+ *
  * **/
 int FusionCameraDetectionComponent::InitConfig() {
   // the macro READ_CONF would return cyber::FAIL if config not exists
   /**
    * FusionCameraDetection在下面文件中定义
    * modules/perception/onboard/proto/fusion_camera_detection_component.proto
-   * 
-   * **/ 
+   *
+   * **/
   apollo::perception::onboard::FusionCameraDetection
       fusion_camera_detection_param;
   if (!GetProtoConfig(&fusion_camera_detection_param)) {
@@ -424,7 +446,7 @@ int FusionCameraDetectionComponent::InitConfig() {
     return false;
   }
 
-  //camera_names_str="front_6mm,front_12mm"
+  // camera_names_str="front_6mm,front_12mm"
   std::string camera_names_str = fusion_camera_detection_param.camera_names();
   // camera_names_={front_6mm,front_12mm}
   boost::algorithm::split(camera_names_, camera_names_str,
@@ -435,18 +457,18 @@ int FusionCameraDetectionComponent::InitConfig() {
     return cyber::FAIL;
   }
 
-  /*** 
+  /***
    * input_camera_channel_names :
    * "/apollo/sensor/camera/front_6mm/image,/apollo/sensor/camera/front_12mm/image"
    * **/
   std::string input_camera_channel_names_str =
       fusion_camera_detection_param.input_camera_channel_names();
   /**
-   * 
+   *
    * input_camera_channel_names_={
    * /apollo/sensor/camera/front_6mm/image,
    * /apollo/sensor/camera/front_12mm/image}
-   * 
+   *
    * **/
   boost::algorithm::split(input_camera_channel_names_,
                           input_camera_channel_names_str,
@@ -458,7 +480,7 @@ int FusionCameraDetectionComponent::InitConfig() {
   }
 
   /**
-   * 
+   *
    * camera_obstacle_perception_conf_dir :
    * "/apollo/modules/perception/production/conf/perception/camera"
    * **/
@@ -467,7 +489,7 @@ int FusionCameraDetectionComponent::InitConfig() {
 
   /**
    * camera_obstacle_perception_conf_file : "obstacle.pt"
-   * **/    
+   * **/
   camera_perception_init_options_.conf_file =
       fusion_camera_detection_param.camera_obstacle_perception_conf_file();
 
@@ -476,7 +498,6 @@ int FusionCameraDetectionComponent::InitConfig() {
    * **/
   camera_perception_init_options_.lane_calibration_working_sensor_name =
       fusion_camera_detection_param.lane_calibration_working_sensor_name();
-
 
   camera_perception_init_options_.use_cyber_work_root = true;
 
@@ -490,22 +511,27 @@ int FusionCameraDetectionComponent::InitConfig() {
    * **/
   image_channel_num_ = fusion_camera_detection_param.image_channel_num();
 
-
   enable_undistortion_ = fusion_camera_detection_param.enable_undistortion();
+
   enable_visualization_ = fusion_camera_detection_param.enable_visualization();
+
   output_obstacles_channel_name_ =
       fusion_camera_detection_param.output_obstacles_channel_name();
+
   camera_perception_viz_message_channel_name_ =
       fusion_camera_detection_param
           .camera_perception_viz_message_channel_name();
+
   visual_debug_folder_ = fusion_camera_detection_param.visual_debug_folder();
+
   visual_camera_ = fusion_camera_detection_param.visual_camera();
+
   output_final_obstacles_ =
       fusion_camera_detection_param.output_final_obstacles();
 
   /**
    * prefused_channel_name : "/perception/inner/PrefusedObjects"
-   * **/    
+   * **/
   prefused_channel_name_ =
       fusion_camera_detection_param.prefused_channel_name();
   default_camera_pitch_ =
@@ -517,7 +543,7 @@ int FusionCameraDetectionComponent::InitConfig() {
 
   /**
    * camera_debug_channel_name : "/perception/camera_debug"
-   * **/    
+   * **/
   camera_debug_channel_name_ =
       fusion_camera_detection_param.camera_debug_channel_name();
 
@@ -620,11 +646,11 @@ int FusionCameraDetectionComponent::InitSensorInfo() {
 }
 
 int FusionCameraDetectionComponent::InitAlgorithmPlugin() {
-
   /**
    * 成员变量camera_obstacle_pipeline_
-   * std::unique_ptr<camera::ObstacleCameraPerception> camera_obstacle_pipeline_;
-   * 
+   * std::unique_ptr<camera::ObstacleCameraPerception>
+   * camera_obstacle_pipeline_;
+   *
    * camera::ObstacleCameraPerception在下面文件中定义
    * modules/perception/camera/app/obstacle_camera_perception.cc
    * **/
@@ -722,6 +748,15 @@ int FusionCameraDetectionComponent::InitProjectMatrix() {
 }
 
 int FusionCameraDetectionComponent::InitCameraListeners() {
+
+  /**
+   * camera_names_={front_6mm,front_12mm}
+   * 
+   * input_camera_channel_names_={
+   * /apollo/sensor/camera/front_6mm/image,
+   * /apollo/sensor/camera/front_12mm/image}
+   *
+   * **/
   for (size_t i = 0; i < camera_names_.size(); ++i) {
     const std::string &camera_name = camera_names_[i];
     const std::string &channel_name = input_camera_channel_names_[i];

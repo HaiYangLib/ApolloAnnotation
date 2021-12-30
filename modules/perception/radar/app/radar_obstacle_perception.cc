@@ -161,7 +161,16 @@ bool RadarObstaclePerception::Init(const std::string& pipeline_name) {
  * 步骤1：进行检测，对于Radar所谓的检测指的是将点云从Radar坐标系向世界坐标系转换
  * 代码：detector_->Detect(corrected_obstacles, options.detector_options,
  *                        detect_frame_ptr)
- * 步骤2：
+ * 
+ * 步骤2：感兴趣区域过滤
+ * 代码：roi_filter_->RoiFilter(options.roi_filter_options, detect_frame_ptr)
+ * 
+ * 步骤3：追踪，tracker_frame_ptr中保存这track的点（不只是当前帧的点）
+ * 代码：tracker_->Track(*detect_frame_ptr, options.track_options,
+ *            tracker_frame_ptr)
+ * 
+ * 步骤4：整理感知结果
+ * 代码：*objects = tracker_frame_ptr->objects;
  * **/
 bool RadarObstaclePerception::Perceive(
     const drivers::ContiRadar& corrected_obstacles,
@@ -201,9 +210,9 @@ bool RadarObstaclePerception::Perceive(
 
   /**
    * tracker_指向ContiArsTracker
-   * 追踪
+   * 追踪，tracker_frame_ptr中保存这track的点（不只是当前帧的点）
    * **/
-  // 步骤3
+  // 步骤3 
   base::FramePtr tracker_frame_ptr(new base::Frame);
   if (!tracker_->Track(*detect_frame_ptr, options.track_options,
                        tracker_frame_ptr)) {
@@ -215,7 +224,7 @@ bool RadarObstaclePerception::Perceive(
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "tracker");
 
   /**
-   * 输出结果
+   * 整理感知结果
    * **/
   // 步骤4
   *objects = tracker_frame_ptr->objects;

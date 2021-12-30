@@ -14,6 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+* 参考链接 https://brc2.com/the-algorithm-workshop/
+******************************************************************************/
+
+
 #pragma once
 
 #include <algorithm>
