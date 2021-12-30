@@ -122,9 +122,12 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 modules/perception/production/data/perception/camera/models/lane_detector/denseline/deploy.caffemodel
 
 
+<<<<<<< HEAD
 *.so.*
 *.a.*
 
+=======
+>>>>>>> 4c0907f1af2503ac574429de76a04f547d0e1aef
 # log
 *.INFO
 *.log.*

@@ -41,8 +41,10 @@ inline const std::string WorkRoot() {
   std::string work_root = GetEnv("CYBER_PATH");
   if (work_root.empty()) {
     //work_root = "/apollo/cyber";
+
     //work_root="/home/hhy/source_dir/cyber_cmake/cyber";
     work_root="/home/hhy/source_dir/ApolloAnnotation/cyber_cmake/cyber";
+
   }
   return work_root;
 }

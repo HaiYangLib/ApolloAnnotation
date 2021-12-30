@@ -151,7 +151,7 @@ void GlobalData::InitHostInfo() {
 }
 
 bool GlobalData::InitConfig() {
-  
+
   auto config_path = GetAbsolutePath(WorkRoot(), "conf/cyber.pb.conf");
   if (!GetProtoFromFile(config_path, &config_)) {
     AERROR << "read cyber default conf failed!";

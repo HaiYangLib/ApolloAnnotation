@@ -6,9 +6,11 @@ project(cyber_mine)
 enable_language(C ASM)
 set(CMAKE_ASM_CREATE_SHARED_LIBRARY true)
 
+
 # # 设置输出路径
 # set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/out/lib)
 # set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/out/bin)
+
 
 ## clang-8
 #set(CMAKE_C_COMPILER /usr/bin/clang-8)

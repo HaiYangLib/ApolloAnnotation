@@ -38,10 +38,8 @@ build_fast_rtps() {
     ../${FAST_RTPS_BASENAME}-source
 
 
+  cmake --build . --target install DESTDIR="../${FAST_RTPS_BASENAME}-libstdcxx-install"
 
-  #cmake --build . --target install DESTDIR="../${FAST_RTPS_BASENAME}-libstdcxx-install"
-
-  cmake --build . --target install -DCMAKE_INSTALL_PREFIX=="../${FAST_RTPS_BASENAME}-libstdcxx-install"
   popd >/dev/null
 }
 
@@ -77,7 +75,7 @@ build_fast_cdr() {
     ../${FAST_CDR_BASENAME}-source
 
   cmake --build . --target install
-  cmake --build . --target install DESTDIR="../${FAST_CDR_BASENAME}-libstdcxx-install"
+
   popd >/dev/null
 
   rm -Rf ${FAST_CDR_BASENAME}-libcxx-build ${FAST_CDR_BASENAME}-libstdcxx-build
@@ -113,7 +111,10 @@ build_foonathan_memory_vendor() {
     -DCMAKE_CXX_FLAGS="-std=c++11" \
     ../${FOONATHAN_MEMORY_BASENAME}-source
 
+<<<<<<< HEAD
   cmake --build . --target install
+=======
+>>>>>>> 4c0907f1af2503ac574429de76a04f547d0e1aef
   cmake --build . --target install DESTDIR="../${FOONATHAN_MEMORY_BASENAME}-libstdcxx-install"
 
   popd >/dev/null
@@ -129,5 +130,9 @@ else
   # build
   build_fast_cdr
   build_foonathan_memory_vendor
+<<<<<<< HEAD
   build_fast_rtps
+=======
+  # build_fast_rtps
+>>>>>>> 4c0907f1af2503ac574429de76a04f547d0e1aef
 fi
