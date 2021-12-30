@@ -1,0 +1,7 @@
+<cyber>
+    <module>
+        <name>common</name>
+        <dag_conf>/home/hhy/source_dir/cyber_mine/test/common_component_example/common.dag</dag_conf>
+        <process_name>common</process_name>
+    </module>
+</cyber>
