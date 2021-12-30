@@ -54,7 +54,7 @@ modules/perception/production/data/perception/camera/models/lane_detector/densel
 
 ### Control
 
-针对**感知模块(Perception)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
+针对**控制模块(Control)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
 
 
 

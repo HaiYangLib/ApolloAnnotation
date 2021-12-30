@@ -112,11 +112,13 @@ tools/FlameGraph
 
 # 一些大文件(主要是某些模型文件)
 
-
 *.caffemodel
 *.model
 *.caffemodel.metadata
 *.onnx
+
+modules/planning/data/model/*.pt
+
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
 modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/3d-r4-half/params
