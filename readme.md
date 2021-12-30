@@ -24,7 +24,7 @@ modules/perception/production/data/perception/camera/models/lane_detector/densel
 
 **本人邮箱：hanhy20@mails.jlu.edu.cn** **欢迎交流**。
 
-与注释相关的文档，全部保存在**doc文件夹**中，为了便于查找本readme文件会提供相应查找跳转链接。
+与注释相关的文档，全部保存在**doc文件夹**中(详细内容未上传)，为了便于查找本readme文件会提供相应查找跳转链接。
 
 ### Cyber
 
