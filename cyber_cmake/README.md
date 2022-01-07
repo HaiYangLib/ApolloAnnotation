@@ -1,2 +1,0 @@
-# CyberMine
-CyberRT With Cmake
