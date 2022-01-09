@@ -14,6 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 /**
  * @file
  **/
@@ -39,22 +46,47 @@ bool ConstraintChecker1d::IsValidLongitudinalTrajectory(
   double t = 0.0;
   while (t < lon_trajectory.ParamLength()) {
     double v = lon_trajectory.Evaluate(1, t);  // evaluate_v
+    /**
+     * DEFINE_double(speed_lower_bound, -0.1, "The lowest speed allowed.");
+     * DEFINE_double(speed_upper_bound, 40.0, "The highest speed allowed.");
+     * 
+     * 判断速度是否符合要求
+     * **/
     if (!fuzzy_within(v, FLAGS_speed_lower_bound, FLAGS_speed_upper_bound)) {
       return false;
     }
 
     double a = lon_trajectory.Evaluate(2, t);  // evaluate_a
+
+    /**
+     * DEFINE_double(longitudinal_acceleration_lower_bound, -6.0,
+     *               "The lowest longitudinal acceleration allowed.");
+     * DEFINE_double(longitudinal_acceleration_upper_bound, 4.0，
+     *        "The highest longitudinal acceleration allowed.");
+     * 
+     * 判断加速度是否符合要求
+     * **/
     if (!fuzzy_within(a, FLAGS_longitudinal_acceleration_lower_bound,
                       FLAGS_longitudinal_acceleration_upper_bound)) {
       return false;
     }
 
     double j = lon_trajectory.Evaluate(3, t);
+
+    /**
+     * DEFINE_double(longitudinal_jerk_lower_bound, -4.0,
+     *          "The lower bound of longitudinal jerk.");
+     * DEFINE_double(longitudinal_jerk_upper_bound, 2.0,
+     *        "The upper bound of longitudinal jerk.");
+     * 
+     * 判断加加速度是否符合要求
+     * **/
     if (!fuzzy_within(j, FLAGS_longitudinal_jerk_lower_bound,
                       FLAGS_longitudinal_jerk_upper_bound)) {
       return false;
     }
-    t += FLAGS_trajectory_time_resolution;
+
+    t += FLAGS_trajectory_time_resolution; //0.1s
   }
   return true;
 }

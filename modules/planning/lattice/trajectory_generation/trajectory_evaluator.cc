@@ -85,16 +85,32 @@ TrajectoryEvaluator::TrajectoryEvaluator(
     stop_point = planning_target.stop_point().s();
   }
 
+  /**
+   * 逐条筛选候选轨迹
+   * **/
   for (const auto& lon_trajectory : lon_trajectories) {
     double lon_end_s = lon_trajectory->Evaluate(0, end_time);
+
+    /**
+     * DEFINE_double(lattice_stop_buffer, 0.02,
+     *         "The buffer before the stop s to check trajectories.");
+     * 
+     * 如果lon_end_s + FLAGS_lattice_stop_buffer > stop_point
+     * 怎认为超过停止点，舍弃
+     * **/
     if (init_s[0] < stop_point &&
         lon_end_s + FLAGS_lattice_stop_buffer > stop_point) {
       continue;
     }
 
+    /**
+     * 判断该条轨迹
+     * 速度是否符合要求，加速度是否符合要求，加加速度是否符合要求
+     * **/
     if (!ConstraintChecker1d::IsValidLongitudinalTrajectory(*lon_trajectory)) {
       continue;
     }
+
     for (const auto& lat_trajectory : lat_trajectories) {
       /**
        * The validity of the code needs to be verified.
@@ -242,20 +258,32 @@ double TrajectoryEvaluator::LonObjectiveCost(
     const PlanningTarget& planning_target,
     const std::vector<double>& ref_s_dots) const {
   double t_max = lon_trajectory->ParamLength();
+  /**
+   * 规划时间段的s长度 
+   * **/
   double dist_s =
       lon_trajectory->Evaluate(0, t_max) - lon_trajectory->Evaluate(0, 0.0);
 
   double speed_cost_sqr_sum = 0.0;
   double speed_cost_weight_sum = 0.0;
   for (size_t i = 0; i < ref_s_dots.size(); ++i) {
-    double t = static_cast<double>(i) * FLAGS_trajectory_time_resolution;
+    double t = static_cast<double>(i) * FLAGS_trajectory_time_resolution; //0.1s
     double cost = ref_s_dots[i] - lon_trajectory->Evaluate(1, t);
     speed_cost_sqr_sum += t * t * std::fabs(cost);
     speed_cost_weight_sum += t * t;
   }
+
+  /**
+   * 加权后的speed_cost
+   * **/
   double speed_cost =
       speed_cost_sqr_sum / (speed_cost_weight_sum + FLAGS_numerical_epsilon);
   double dist_travelled_cost = 1.0 / (1.0 + dist_s);
+
+  /**
+   * DEFINE_double(weight_target_speed, 1.0, "Weight of target speed cost");
+   * DEFINE_double(weight_dist_travelled, 10.0, "Weight of travelled distance cost");
+   * **/
   return (speed_cost * FLAGS_weight_target_speed +
           dist_travelled_cost * FLAGS_weight_dist_travelled) /
          (FLAGS_weight_target_speed + FLAGS_weight_dist_travelled);
@@ -318,7 +346,7 @@ std::vector<double> TrajectoryEvaluator::ComputeLongitudinalGuideVelocity(
   double cruise_v = planning_target.cruise_speed();
 
   /**
-   * 没有停止点时
+   * 没有停止点时,匀速
    * 根据始末状态，通过插值得到各个时间点的速度，保存在reference_s_dot
    * **/
   if (!planning_target.has_stop_point()) { 
@@ -389,12 +417,19 @@ std::vector<double> TrajectoryEvaluator::ComputeLongitudinalGuideVelocity(
     double d_comfort = -FLAGS_longitudinal_acceleration_lower_bound *
                        FLAGS_comfort_acceleration_factor;
 
+    /**
+     * lon_ref_trajectory 是一个
+     * std::shared_ptr<PiecewiseAccelerationTrajectory1d>
+     * **/
     std::shared_ptr<Trajectory1d> lon_ref_trajectory =
         PiecewiseBrakingTrajectoryGenerator::Generate(
             planning_target.stop_point().s(), init_s_[0],
             planning_target.cruise_speed(), init_s_[1], a_comfort, d_comfort,
             FLAGS_trajectory_time_length + FLAGS_numerical_epsilon);
 
+    /**
+     * 将整个变速过程离散化
+     * **/
     for (double t = 0.0; t < FLAGS_trajectory_time_length;
          t += FLAGS_trajectory_time_resolution) {
       reference_s_dot.emplace_back(lon_ref_trajectory->Evaluate(1, t));
