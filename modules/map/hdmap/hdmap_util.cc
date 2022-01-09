@@ -46,11 +46,16 @@ std::string FindFirstExist(const std::string& dir, const std::string& files) {
 }  // namespace
 
 std::string BaseMapFile() {
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+   *         "Use relative position in navigation mode");
+   * **/
   if (FLAGS_use_navigation_mode) {
     AWARN << "base_map file is not used when FLAGS_use_navigation_mode is true";
   }
 
   /**
+   * 
    * DEFINE_string(test_base_map_filename, "",
    *           "If not empty, use this test base map files.");
    * 
@@ -152,6 +157,7 @@ const HDMap* HDMapUtil::BaseMapPtr() {
       base_map_seq_ = latest.header().sequence_num();
     }
   } else*/
+  
   if (base_map_ == nullptr) {
     std::lock_guard<std::mutex> lock(base_map_mutex_);
     if (base_map_ == nullptr) {  // Double check.

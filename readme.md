@@ -2,7 +2,7 @@
 
 **本人邮箱：hanhy20@mails.jlu.edu.cn** **欢迎交流**。
 
-基于[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)为其**感知模块** **规划** **Cyber(5.0)框架** 的部分源码作了解析和注释
+基于[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)为其各个模块 以及 **Cyber(5.0)框架** 的部分源码作了解析和注释
 
 * 在代码上传时，某些大文件(**主要是某些模型文件**)没有上传,下面给出了这些文件的详细路径，如果有需要的，可以去Apollo的github上下载，对应版本[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)
 
@@ -49,7 +49,7 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 ### [Routing](doc/routing/routing.md)
 
-暂时未做工作
+刚开始做工作
 
 ### [Planning](doc/planning/Planning.md)
 

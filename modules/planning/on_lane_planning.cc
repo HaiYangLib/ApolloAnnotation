@@ -102,12 +102,19 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
   injector_->planning_context()->mutable_planning_status()->Clear();
 
   // load map
+  /**
+   * 默认情况下使用modules/map/data/demo/base_map.txt
+   * 构造出一个HDMap
+   * 配置文件modules/map/data/demo/base_map.txt对应的protobuf map 为
+   * Map map_
+   * **/
   hdmap_ = HDMapUtil::BaseMapPtr();
   ACHECK(hdmap_) << "Failed to load map";
 
   // instantiate reference line provider
   reference_line_provider_ = std::make_unique<ReferenceLineProvider>(
       injector_->vehicle_state(), hdmap_);
+
   reference_line_provider_->Start();
 
   // dispatch planner
@@ -226,7 +233,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   // when rerouting, reference line might not be updated. In this case, planning
   // module maintains not-ready until be restarted.
   static bool failed_to_update_reference_line = false;
-  local_view_ = local_view;
+  local_view_ = local_view; 
   const double start_timestamp = Clock::NowInSeconds();
   const double start_system_timestamp =
       std::chrono::duration<double>(

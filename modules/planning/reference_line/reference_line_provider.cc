@@ -63,6 +63,15 @@ ReferenceLineProvider::ReferenceLineProvider(
     const hdmap::HDMap *base_map,
     const std::shared_ptr<relative_map::MapMsg> &relative_map)
     : vehicle_state_provider_(vehicle_state_provider) {
+
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+   *         "Use relative position in navigation mode")
+   * 
+   * base_map是PlanningBase的成员变量hdmap_ 
+   * 
+   * 
+   * **/    
   if (!FLAGS_use_navigation_mode) {
     pnc_map_ = std::make_unique<hdmap::PncMap>(base_map);
     relative_map_ = nullptr;
