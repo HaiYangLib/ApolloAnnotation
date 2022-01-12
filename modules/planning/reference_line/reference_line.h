@@ -224,10 +224,10 @@ class ReferenceLine {
   /**
    * This speed limit overrides the lane speed limit
    **/
-  std::vector<SpeedLimit> speed_limit_;
-  std::vector<ReferencePoint> reference_points_;
-  hdmap::Path map_path_;
-  uint32_t priority_ = 0;
+  std::vector<SpeedLimit> speed_limit_;           //速度限制
+  std::vector<ReferencePoint> reference_points_;  // 参考线的点
+  hdmap::Path map_path_;                          // 路径
+  uint32_t priority_ = 0;                         // 优先级
 };
 
 }  // namespace planning

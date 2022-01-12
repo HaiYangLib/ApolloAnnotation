@@ -68,6 +68,12 @@ bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
          lane_segment.end_s() + kSegmentationEpsilon >= waypoint.s;
 }
 
+/**
+ * waypoint在lane_segment中需要满足条件：
+ * waypoint和lane_segment的所在的车道lane的id必须一致
+ * waypoint的累计距离s必须在lane_segment的start_s和end_s之间。
+ * 
+ * **/
 bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
                                       const routing::LaneWaypoint &waypoint) {
   return lane_segment.id() == waypoint.id() &&

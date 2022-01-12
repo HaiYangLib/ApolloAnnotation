@@ -25,10 +25,6 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 ## 一些工作
 
-![image-20220112231804448](/home/hhy/snap/typora/46/.config/Typora/typora-user-images/image-20220112231804448.png)
-
-**橙色的部分是正在做的工作。**
-
 与注释相关的文档，全部保存在**doc文件夹**中(详细内容未上传)，为了便于查找本readme文件会提供相应查找跳转链接。
 
 ### [Cyber](doc/cyber/cyber.md)
