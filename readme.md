@@ -25,7 +25,9 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 ## 一些工作
 
-![image-20220112231804448](/home/hhy/snap/typora/46/.config/Typora/typora-user-images/image-20220112231804448.png)
+![image-20220112232738411](assets/REDAME.assets/image-20220112232738411.png)
+
+
 
 **橙色的部分是正在做的工作。**
 
