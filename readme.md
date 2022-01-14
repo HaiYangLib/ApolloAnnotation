@@ -61,6 +61,12 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 * 对**Lattice Planner**做了注释工作
 
+**[Planning 概要说明](doc/planning/planning概要说明.md)**
+
+Frenet坐标系推倒
+
+**[Planning源码解析](doc/planning/planning源码解析.md)**
+
 
 
 ## 一些心得

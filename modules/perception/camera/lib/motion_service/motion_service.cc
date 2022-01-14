@@ -62,6 +62,7 @@ bool MotionService::Init() {
   const std::string &camera_name = camera_names_[0];
   std::function<void(const ImageMsgType &)> camera_callback = std::bind(
       &MotionService::OnReceiveImage, this, std::placeholders::_1, camera_name);
+      
   auto camera_reader = node_->CreateReader(channel_name_img, camera_callback);
 
   // initialize localization listener

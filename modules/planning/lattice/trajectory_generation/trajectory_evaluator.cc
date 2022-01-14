@@ -161,6 +161,7 @@ double TrajectoryEvaluator::Evaluate(
   // 5. Cost of lateral comfort
 
   // Longitudinal costs
+
   double lon_objective_cost =
       LonObjectiveCost(lon_trajectory, planning_target, reference_s_dot_);
 
@@ -243,6 +244,14 @@ double TrajectoryEvaluator::LonComfortCost(
     const PtrTrajectory1d& lon_trajectory) const {
   double cost_sqr_sum = 0.0;
   double cost_abs_sum = 0.0;
+
+   /**
+   * DEFINE_double(trajectory_time_length, 8.0, "Trajectory time length");
+   * 
+   * DEFINE_double(trajectory_time_resolution, 0.1,
+   *           "Trajectory time resolution in planning");
+   * **/
+
   for (double t = 0.0; t < FLAGS_trajectory_time_length;
        t += FLAGS_trajectory_time_resolution) {
     double jerk = lon_trajectory->Evaluate(3, t);
@@ -250,6 +259,8 @@ double TrajectoryEvaluator::LonComfortCost(
     cost_sqr_sum += cost * cost;
     cost_abs_sum += std::fabs(cost);
   }
+
+  // 希望jerk越小越好
   return cost_sqr_sum / (cost_abs_sum + FLAGS_numerical_epsilon);
 }
 
@@ -324,6 +335,13 @@ double TrajectoryEvaluator::CentripetalAccelerationCost(
   // Assumes the vehicle is not obviously deviate from the reference line.
   double centripetal_acc_sum = 0.0;
   double centripetal_acc_sqr_sum = 0.0;
+
+  /**
+   * DEFINE_double(trajectory_time_length, 8.0, "Trajectory time length");
+   * 
+   * DEFINE_double(trajectory_time_resolution, 0.1,
+   *           "Trajectory time resolution in planning");
+   * **/
   for (double t = 0.0; t < FLAGS_trajectory_time_length;
        t += FLAGS_trajectory_time_resolution) {
     double s = lon_trajectory->Evaluate(0, t);

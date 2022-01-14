@@ -1,4 +1,4 @@
-# 源码解析
+# Planning源码解析
 
 ## 类图
 
@@ -81,14 +81,6 @@ class PlannerDispatcher{
 }
 
 
-PlanningBase*--Planner
-class Planner{
-	<<interface>>
-	scenario_manager_
-	scenario_
-	+Plan(planning_init_point,frame,ptr_computed_trajectory) 
-}
-
 
 PlanningBase*--PublishableTrajectory
 class PublishableTrajectory{
@@ -103,6 +95,14 @@ class DependencyInjector{
 	ego_info_
 	vehicle_state_
 	learning_based_data_
+}
+
+PlanningBase*--Planner
+class Planner{
+	<<interface>>
+	scenario_manager_
+	scenario_
+	+Plan(planning_init_point,frame,ptr_computed_trajectory) 
 }
 
 PlanningBase..TaskFactory
@@ -139,16 +139,56 @@ class OnLanePlanning{
 	+RunOnce(local_view,ptr_trajectory_pb)
 }
 
+PlanningBase*--Planner
+class Planner{
+	<<interface>>
+	scenario_manager_
+	scenario_
+	+Plan(planning_init_point,frame,ptr_computed_trajectory) 
+}
+
+
 PlanningBase<--NaviPlanning
 class NaviPlanning{
-	
+	last_vehicle_config_
+	target_lane_id_
+	reference_line_provider_
+	+RunOnce(local_view,trajectory_pb)
 }
 
 ```
 
 
 
+```mermaid
+classDiagram
 
+class ReferenceLineProvider{
+	smoother_
+	smoother_config_
+  pnc_map_
+  relative_map_
+  vehicle_state_
+  routing_
+  reference_lines_
+  route_segments_
+  last_calculation_time_
+  reference_line_history_
+  route_segments_history_
+  task_future_
+  vehicle_state_provider_
+  
+  +UpdateRoutingResponse(routing)
+  +UpdateVehicleState(vehicle_state)
+  +Start()
+  +Stop()
+  +GetReferenceLines(reference_lines,segments)
+  +UpdatedReferenceLine()
+}
+
+
+
+```
 
 
 
@@ -245,6 +285,10 @@ class LearningBasedData{
  
 ```
 
+
+
+
+
 ```mermaid
 classDiagram
 
@@ -254,107 +298,40 @@ class TaskFactory{
 }
 ```
 
+```c++
+std::vector<std::shared_ptr<Curve1d>> Trajectory1DBundle 
+```
+
+
+
 ```mermaid
 classDiagram
 
-class ScenarioManager{
-	injector_;
-  planning_config_;
-  config_map_;
-  current_scenario_;
-  default_scenario_type_;
-  scenario_context_;
-  first_encountered_overlap_map_;
+class Curve1d{
+	<<interface>>
+  +Evaluate(order,param)
+  +ParamLength()
+  +ToString()
 }
 
-ScenarioManager*--Scenario
-class Scenario{
-  scenario_status_;
-  current_stage_;
-  config_;
-  stage_config_map_;
-  scenario_context_;
-  name_;
-  msg_;
-  injector_;
+Curve1d<--LatticeTrajectory1d
+class LatticeTrajectory1d{
+	ptr_trajectory1d_
+	+Evaluate(order,param)
+  +ParamLength()
+  +ToString()
 }
 
-Scenario*--ScenarioStatus
-class ScenarioStatus{
+
+Curve1d<--PolynomialCurve1d
+class PolynomialCurve1d{
 	
 }
 
-Scenario*--Stage
-class Stage{
-	
-}
-
-Scenario*--ScenarioConfig
-class ScenarioConfig{
-	
-}
-
-Scenario*--ScenarioContext
-class ScenarioContext{
-	
-}
-
-Scenario*--DependencyInjector
-class DependencyInjector{
+LatticeTrajectory1d*--QuarticPolynomialCurve1d
+PolynomialCurve1d<--QuarticPolynomialCurve1d
+class QuarticPolynomialCurve1d{
 	
 }
 ```
-
-
-
-
-
-## 源码
-
-**PlanningComponent模块**的入口为modules/planning/planning_component.cc
-
-对应的配置dag文件：
-
-```json
-```
-
-
-
-
-
-PlanningComponent模块会订阅topic：`"/apollo/routing_response"`
-
-该topic由Routing模块发布，`RoutingResponse`是Routing模块生成的路径
-
-```c++
- //  routing_response_topic: "/apollo/routing_response"
-  routing_reader_ = node_->CreateReader<RoutingResponse>(
-      config_.topic_config().routing_response_topic(),
-      [this](const std::shared_ptr<RoutingResponse>& routing) {
-        AINFO << "Received routing data: run routing callback."
-              << routing->header().DebugString();
-        std::lock_guard<std::mutex> lock(mutex_);
-        routing_.CopyFrom(*routing);
-      });
-
-```
-
-`RoutingResponse`保存着Routing模块生成的路径
-
-在文件`modules/routing/proto/routing.proto` 中定义
-
-```protobuf
-message RoutingResponse {
-  optional apollo.common.Header header = 1;
-  repeated RoadSegment road = 2;
-  optional Measurement measurement = 3;
-  optional RoutingRequest routing_request = 4;
-
-  // the map version which is used to build road graph
-  optional bytes map_version = 5;
-  optional apollo.common.StatusPb status = 6;
-}
-```
-
-
 

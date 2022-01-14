@@ -126,8 +126,6 @@ modules/perception/production/data/perception/camera/models/yolo_obstacle_detect
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
 
 
-
-
 *.so.*
 *.a.*
 
@@ -137,6 +135,7 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 cmake-build-debug/
 build/
+.CodeCounter/
 
 *.zip
 

@@ -68,9 +68,7 @@ ReferenceLineProvider::ReferenceLineProvider(
    * DEFINE_bool(use_navigation_mode, false,
    *         "Use relative position in navigation mode")
    * 
-   * base_map是PlanningBase的成员变量hdmap_ 
-   * 
-   * 
+   * 如果是导航模式则启动相对地图，如果不是则启动pnc_map
    * **/    
   if (!FLAGS_use_navigation_mode) {
     pnc_map_ = std::make_unique<hdmap::PncMap>(base_map);
@@ -80,6 +78,9 @@ ReferenceLineProvider::ReferenceLineProvider(
     relative_map_ = relative_map;
   }
 
+  /**
+   * 初始化平滑器
+   * **/
   ACHECK(cyber::common::GetProtoFromFile(FLAGS_smoother_config_filename,
                                          &smoother_config_))
       << "Failed to load smoother config file "
