@@ -23,7 +23,7 @@ modules/perception/production/data/perception/camera/models/yolo_obstacle_detect
 modules/perception/production/data/perception/camera/models/lane_detector/darkSCNN/params
 ```
 
-## 一些工作
+## 模块关系
 
 ![image-20220112232738411](assets/REDAME.assets/image-20220112232738411.png)
 
@@ -31,15 +31,17 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 **橙色的部分是正在做的工作。**
 
+**[各个模块订阅及发布的Topic](doc/architecture/topic.md)**
+
 与注释相关的文档，全部保存在**doc文件夹**中(详细内容未上传)，为了便于查找本readme文件会提供相应查找跳转链接。
 
-### [Cyber](doc/cyber/cyber.md)
+## Cyber
 
 完成了**Cyber的cmake版移植**，详细代码见**cyber_cmake**
 
 提供了Cyber所需的第三方库的安装脚本,在thritd_party目录下
 
-### [Perception](doc/perception/perception.md)
+## Perception
 
 针对**感知模块(Perception)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
 
@@ -47,21 +49,21 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 * **Liadr子模块**的注释工作主要涉及：Lidar**数据预处理**，**Pointpillars算法**实现过程的分析与代码注释
 * **Camera子模块**的注释工作暂时未做
 
-### [Prediction](doc/prediction/prediction.md)
+## Prediction
 
 暂时未做工作
 
-### [Routing&Map](doc/routing&map/routing.md)
+## Routing&Map
 
-刚开始做工作
+**[HDMap和PncMap分析](doc/routing&map/hd&pnc_map.md)**
 
-### [Planning](doc/planning/Planning.md)
+## Planning
 
 针对**规划模块(Planning)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
 
 * 对**Lattice Planner**做了注释工作
 
-**[Planning 概要说明](doc/planning/planning概要说明.md)**
+**[Planning概要说明](doc/planning/planning概要说明.md)**
 
 **[Frenet坐标系推导](doc/planning/frenet坐标系推导.md)**
 

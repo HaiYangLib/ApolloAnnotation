@@ -562,8 +562,13 @@ void OnLanePlanning::ExportReferenceLineDebug(planning_internal::Debug* debug) {
 Status OnLanePlanning::Plan(
     const double current_time_stamp,
     const std::vector<TrajectoryPoint>& stitching_trajectory,
-    ADCTrajectory* const ptr_trajectory_pb) {
+    ADCTrajectory* const ptr_trajectory_pb) 
   auto* ptr_debug = ptr_trajectory_pb->mutable_debug();
+
+  /**
+   * DEFINE_bool(enable_record_debug, true,
+   *         "True to enable record debug info in chart format");
+   * **/
   if (FLAGS_enable_record_debug) {
     ptr_debug->mutable_planning_data()->mutable_init_point()->CopyFrom(
         stitching_trajectory.back());

@@ -14,6 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 /**
  * @file
  * @brief Implementation of the class ReferenceLineProvider.
@@ -63,13 +70,12 @@ ReferenceLineProvider::ReferenceLineProvider(
     const hdmap::HDMap *base_map,
     const std::shared_ptr<relative_map::MapMsg> &relative_map)
     : vehicle_state_provider_(vehicle_state_provider) {
-
   /**
    * DEFINE_bool(use_navigation_mode, false,
    *         "Use relative position in navigation mode")
-   * 
+   *
    * 如果是导航模式则启动相对地图，如果不是则启动pnc_map
-   * **/    
+   * **/
   if (!FLAGS_use_navigation_mode) {
     pnc_map_ = std::make_unique<hdmap::PncMap>(base_map);
     relative_map_ = nullptr;
@@ -236,6 +242,10 @@ bool ReferenceLineProvider::GetReferenceLines(
   CHECK_NOTNULL(reference_lines);
   CHECK_NOTNULL(segments);
 
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+   *         "Use relative position in navigation mode");
+   * **/
   if (FLAGS_use_navigation_mode) {
     double start_time = Clock::NowInSeconds();
     bool result = GetReferenceLinesFromRelativeMap(reference_lines, segments);
@@ -247,6 +257,10 @@ bool ReferenceLineProvider::GetReferenceLines(
     return result;
   }
 
+  /**
+   * DEFINE_bool(enable_reference_line_provider_thread, true,
+   *         "Enable reference line provider thread.");
+   * **/
   if (FLAGS_enable_reference_line_provider_thread) {
     std::lock_guard<std::mutex> lock(reference_lines_mutex_);
     if (!reference_lines_.empty()) {
@@ -270,6 +284,11 @@ bool ReferenceLineProvider::GetReferenceLines(
     return false;
   }
 
+  /**
+   * 得到最新的一个reference_lines
+   * reference_line_history_和route_segments_history_由
+   * GenerateThread通过UpdateReferenceLine和CreateReferenceLine更新
+   * **/
   reference_lines->assign(reference_line_history_.back().begin(),
                           reference_line_history_.back().end());
   segments->assign(route_segments_history_.back().begin(),
@@ -590,6 +609,12 @@ bool ReferenceLineProvider::CreateReferenceLine(
     AERROR << "Failed to create reference line from routing";
     return false;
   }
+
+  /**
+   * DEFINE_bool(enable_reference_line_stitching, true,
+   *         "Enable stitching reference line, which can reducing computing "
+   *         "time and improve stability");
+   * **/
   if (is_new_routing || !FLAGS_enable_reference_line_stitching) {
     for (auto iter = segments->begin(); iter != segments->end();) {
       reference_lines->emplace_back();
