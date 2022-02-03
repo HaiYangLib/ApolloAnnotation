@@ -13,6 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =========================================================================*/
 
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 #include "modules/map/hdmap/hdmap_common.h"
 
 #include <algorithm>
@@ -106,8 +113,19 @@ PointENU PointFromVec2d(const Vec2d &point) {
 LaneInfo::LaneInfo(const Lane &lane) : lane_(lane) { Init(); }
 
 void LaneInfo::Init() {
+  // 填充points_
   PointsFromCurve(lane_.central_curve(), &points_);
+
   CHECK_GE(points_.size(), 2);
+
+  /**
+   * 
+   * std::vector<apollo::common::math::Vec2d> unit_directions_; // 单位向量
+   * std::vector<double> headings_;
+   * std::vector<apollo::common::math::LineSegment2d> segments_;
+   * std::vector<double> accumulated_s_;
+   * 
+   * **/
   segments_.clear();
   accumulated_s_.clear();
   unit_directions_.clear();
@@ -125,6 +143,7 @@ void LaneInfo::Init() {
   total_length_ = s;
   ACHECK(!unit_directions_.empty());
   unit_directions_.push_back(unit_directions_.back());
+
   for (const auto &direction : unit_directions_) {
     headings_.push_back(direction.Angle());
   }
@@ -145,6 +164,7 @@ void LaneInfo::Init() {
   if (lane_.has_type()) {
     if (lane_.type() == Lane::CITY_DRIVING) {
       for (const auto &p : sampled_left_width_) {
+        // DEFINE_double(half_vehicle_width, 1.05, "half vehicle width");
         if (p.second < FLAGS_half_vehicle_width) {
           AERROR
               << "lane[id = " << lane_.id().DebugString()
@@ -401,6 +421,7 @@ bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
   double min_dist = std::numeric_limits<double>::infinity();
   int seg_num = static_cast<int>(segments_.size());
   int min_index = 0;
+  // 找到最近的一段 LineSegment2d ： nearest_seg
   for (int i = 0; i < seg_num; ++i) {
     const double distance = segments_[i].DistanceSquareTo(point);
     if (distance < min_dist) {
@@ -410,14 +431,16 @@ bool LaneInfo::GetProjection(const Vec2d &point, double *accumulate_s,
   }
   min_dist = std::sqrt(min_dist);
   const auto &nearest_seg = segments_[min_index];
-  const auto prod = nearest_seg.ProductOntoUnit(point);
-  const auto proj = nearest_seg.ProjectOntoUnit(point);
+  const auto prod = nearest_seg.ProductOntoUnit(point); // 点point到nearest_seg的距离 
+  const auto proj = nearest_seg.ProjectOntoUnit(point); // 点point在nearest_seg的投影
+
   if (min_index == 0) {
     *accumulate_s = std::min(proj, nearest_seg.length());
+    // lateral带有方向
     if (proj < 0) {
       *lateral = prod;
     } else {
-      *lateral = (prod > 0.0 ? 1 : -1) * min_dist;
+      *lateral = (prod > 0.0 ? 1 : -1) * min_dist; 
     }
   } else if (min_index == seg_num - 1) {
     *accumulate_s = accumulated_s_[min_index] + std::max(0.0, proj);

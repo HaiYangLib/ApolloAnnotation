@@ -157,8 +157,8 @@ DEFINE_bool(prioritize_change_lane, false,
             "change lane path if such path exists");
 DEFINE_double(change_lane_min_length, 30.0,
               "meters. If the change lane target has longer length than this "
-              "threshold, it can shortcut the default lane.");
-
+eshold, it can shortcut the default lane.");
+              "thr
 DEFINE_double(replan_lateral_distance_threshold, 0.5,
               "The lateral distance threshold of replan");
 DEFINE_double(replan_longitudinal_distance_threshold, 2.5,

@@ -15,11 +15,10 @@
  *****************************************************************************/
 
 /******************************************************************************
-* AnnotationAuthor  : HaiYang
-* Email   : hanhy20@mails.jlu.edu.cn
-* Desc    : annotation for apollo
-******************************************************************************/
-
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
 
 /**
  * @file
@@ -76,6 +75,7 @@ ReferenceLineProvider::ReferenceLineProvider(
    *
    * 如果是导航模式则启动相对地图，如果不是则启动pnc_map
    * **/
+  // 步骤1：根据高精地图类，初始化PncMap
   if (!FLAGS_use_navigation_mode) {
     pnc_map_ = std::make_unique<hdmap::PncMap>(base_map);
     relative_map_ = nullptr;
@@ -85,8 +85,31 @@ ReferenceLineProvider::ReferenceLineProvider(
   }
 
   /**
-   * 初始化平滑器
+   *
+   * DEFINE_string(smoother_config_filename,
+   *               "/apollo/modules/planning/conf/qp_spline_smoother_config.pb.txt",
+   *               "The configuration file for qp_spline smoother");
+   *
+   * 文件：/apollo/modules/planning/conf/qp_spline_smoother_config.pb.txt
+   * max_constraint_interval : 5.0
+   * longitudinal_boundary_bound : 2.0
+   * max_lateral_boundary_bound : 0.5
+   * min_lateral_boundary_bound : 0.1
+   * num_of_total_points : 500
+   * curb_shift : 0.2
+   * lateral_buffer : 0.2
+   *
+   * qp_spline {
+   *   spline_order: 5
+   *   max_spline_length : 25.0
+   *   regularization_weight : 1.0e-5
+   *   second_derivative_weight : 200.0
+   *   third_derivative_weight : 1000.0
+   * }
+   *
+   *
    * **/
+  // 步骤2： 初始化平滑器
   ACHECK(cyber::common::GetProtoFromFile(FLAGS_smoother_config_filename,
                                          &smoother_config_))
       << "Failed to load smoother config file "
@@ -130,14 +153,23 @@ void ReferenceLineProvider::UpdateVehicleState(
 }
 
 bool ReferenceLineProvider::Start() {
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+   *         "Use relative position in navigation mode");
+   * **/
   if (FLAGS_use_navigation_mode) {
     return true;
   }
+
   if (!is_initialized_) {
     AERROR << "ReferenceLineProvider has NOT been initiated.";
     return false;
   }
 
+  /**
+   * DEFINE_bool(enable_reference_line_provider_thread, true,
+   *         "Enable reference line provider thread.");
+   * **/
   if (FLAGS_enable_reference_line_provider_thread) {
     task_future_ = cyber::Async(&ReferenceLineProvider::GenerateThread, this);
   }
@@ -212,6 +244,7 @@ void ReferenceLineProvider::GenerateThread() {
       AERROR << "Routing is not ready.";
       continue;
     }
+
     std::list<ReferenceLine> reference_lines;
     std::list<hdmap::RouteSegments> segments;
     if (!CreateReferenceLine(&reference_lines, &segments)) {
@@ -569,9 +602,15 @@ bool ReferenceLineProvider::CreateRouteSegments(
     }
   }
 
+  /**
+   * DEFINE_bool(prioritize_change_lane, false,
+   *         "change lane strategy has higher priority, always use a valid "
+   *         "change lane path if such path exists");
+   * **/
   if (FLAGS_prioritize_change_lane) {
     PrioritzeChangeLane(segments);
   }
+
   return !segments->empty();
 }
 
@@ -592,6 +631,7 @@ bool ReferenceLineProvider::CreateReferenceLine(
     std::lock_guard<std::mutex> lock(routing_mutex_);
     routing = routing_;
   }
+
   bool is_new_routing = false;
   {
     // Update routing in pnc_map
@@ -605,6 +645,10 @@ bool ReferenceLineProvider::CreateReferenceLine(
     }
   }
 
+  /**
+   * 调用
+   * pnc_map_->GetRouteSegments(vehicle_state, segments)
+   * **/
   if (!CreateRouteSegments(vehicle_state, segments)) {
     AERROR << "Failed to create reference line from routing";
     return false;
@@ -618,6 +662,7 @@ bool ReferenceLineProvider::CreateReferenceLine(
   if (is_new_routing || !FLAGS_enable_reference_line_stitching) {
     for (auto iter = segments->begin(); iter != segments->end();) {
       reference_lines->emplace_back();
+
       if (!SmoothRouteSegment(*iter, &reference_lines->back())) {
         AERROR << "Failed to create reference line from route segments";
         reference_lines->pop_back();
@@ -628,6 +673,10 @@ bool ReferenceLineProvider::CreateReferenceLine(
           AWARN << "Failed to project point: {" << vehicle_state.x() << ","
                 << vehicle_state.y() << "} to stitched reference line";
         }
+        /**
+         * 调整reference_line长度
+         * 筛选掉segments中不在范围内的LaneSegment
+         * **/
         Shrink(sl, &reference_lines->back(), &(*iter));
         ++iter;
       }
@@ -736,6 +785,10 @@ bool ReferenceLineProvider::ExtendReferenceLine(const VehicleState &state,
   return Shrink(sl, reference_line, segments);
 }
 
+/**
+ * 调整reference_line长度
+ * 筛选掉segments中不在范围内的LaneSegment
+ * **/
 bool ReferenceLineProvider::Shrink(const common::SLPoint &sl,
                                    ReferenceLine *reference_line,
                                    RouteSegments *segments) {
@@ -744,6 +797,11 @@ bool ReferenceLineProvider::Shrink(const common::SLPoint &sl,
   double new_backward_distance = sl.s();
   double new_forward_distance = reference_line->Length() - sl.s();
   bool need_shrink = false;
+
+  /**
+   * DEFINE_double(look_backward_distance, 50,
+   *  "look backward this distance when creating reference line from routing");
+   * **/
   if (sl.s() > FLAGS_look_backward_distance * 1.5) {
     ADEBUG << "reference line back side is " << sl.s()
            << ", shrink reference line: origin length: "
@@ -756,6 +814,7 @@ bool ReferenceLineProvider::Shrink(const common::SLPoint &sl,
   const auto &ref_points = reference_line->reference_points();
   const double cur_heading = ref_points[index].heading();
   auto last_index = index;
+  // M_PI * 5.0 / 6.0
   while (last_index < ref_points.size() &&
          AngleDiff(cur_heading, ref_points[last_index].heading()) <
              kMaxHeadingDiff) {
@@ -768,16 +827,20 @@ bool ReferenceLineProvider::Shrink(const common::SLPoint &sl,
     reference_line->XYToSL(ref_points[last_index], &forward_sl);
     new_forward_distance = forward_sl.s() - sl.s();
   }
+
   if (need_shrink) {
+    // 调整reference_line中reference_points_和map_path_长度
     if (!reference_line->Segment(sl.s(), new_backward_distance,
                                  new_forward_distance)) {
       AWARN << "Failed to shrink reference line";
     }
+    // 筛选掉不再范围内的LaneSegment
     if (!segments->Shrink(sl.s(), new_backward_distance,
                           new_forward_distance)) {
       AWARN << "Failed to shrink route segment";
     }
   }
+
   return true;
 }
 
@@ -809,6 +872,7 @@ bool ReferenceLineProvider::IsReferenceLineSmoothValid(
 AnchorPoint ReferenceLineProvider::GetAnchorPoint(
     const ReferenceLine &reference_line, double s) const {
   AnchorPoint anchor;
+  //  longitudinal_boundary_bound : 2.0
   anchor.longitudinal_bound = smoother_config_.longitudinal_boundary_bound();
   auto ref_point = reference_line.GetReferencePoint(s);
   if (ref_point.lane_waypoints().empty()) {
@@ -885,16 +949,35 @@ void ReferenceLineProvider::GetAnchorPoints(
     const ReferenceLine &reference_line,
     std::vector<AnchorPoint> *anchor_points) const {
   CHECK_NOTNULL(anchor_points);
+  // 采样间隔，默认max_constraint_interval=5.0，即路径累积距离每5m采样一个点。
   const double interval = smoother_config_.max_constraint_interval();
+  // 路径采样点数量计算
   int num_of_anchors =
       std::max(2, static_cast<int>(reference_line.Length() / interval + 0.5));
   std::vector<double> anchor_s;
+  /**
+   * uniform_slice函数就是对[0.0, reference_line.Length()]区间等间隔采样，
+   * 每两个点之间距离为(length_-0.0)/(num_of_anchors - 1)
+   * **/
   common::util::uniform_slice(0.0, reference_line.Length(), num_of_anchors - 1,
                               &anchor_s);
+
+  /**
+   * 根据每个采样点的累积距离s，以及Path的lane_segments_to_next_point_进行平滑插值，
+   * 得到累积距离为s的采样点的坐标(x,y)，并进行轨迹点矫正
+   *
+   * struct AnchorPoint {
+   * common::PathPoint path_point;
+   * double lateral_bound = 0.0;
+   * double longitudinal_bound = 0.0;
+   * bool enforced = false;
+   * };
+   * **/
   for (const double s : anchor_s) {
     AnchorPoint anchor = GetAnchorPoint(reference_line, s);
     anchor_points->emplace_back(anchor);
   }
+
   anchor_points->front().longitudinal_bound = 1e-6;
   anchor_points->front().lateral_bound = 1e-6;
   anchor_points->front().enforced = true;
@@ -903,6 +986,7 @@ void ReferenceLineProvider::GetAnchorPoints(
   anchor_points->back().enforced = true;
 }
 
+// class RouteSegments : public std::vector<LaneSegment>
 bool ReferenceLineProvider::SmoothRouteSegment(const RouteSegments &segments,
                                                ReferenceLine *reference_line) {
   hdmap::Path path(segments);
@@ -953,6 +1037,8 @@ bool ReferenceLineProvider::SmoothPrefixedReferenceLine(
 
 bool ReferenceLineProvider::SmoothReferenceLine(
     const ReferenceLine &raw_reference_line, ReferenceLine *reference_line) {
+  // DEFINE_bool(enable_smooth_reference_line, true,
+  //          "enable smooth the map reference line");
   if (!FLAGS_enable_smooth_reference_line) {
     *reference_line = raw_reference_line;
     return true;

@@ -63,7 +63,6 @@ ScenarioManager::ScenarioManager(
 
 bool ScenarioManager::Init(const PlanningConfig& planning_config) {
   planning_config_.CopyFrom(planning_config);
-
   /**
    * 根据配置文件填充config_map_， 得到场景配置信息
    * 场景类型在下面文件中定义：

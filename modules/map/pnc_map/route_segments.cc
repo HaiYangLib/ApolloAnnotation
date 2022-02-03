@@ -72,7 +72,7 @@ bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
  * waypoint在lane_segment中需要满足条件：
  * waypoint和lane_segment的所在的车道lane的id必须一致
  * waypoint的累计距离s必须在lane_segment的start_s和end_s之间。
- * 
+ *
  * **/
 bool RouteSegments::WithinLaneSegment(const routing::LaneSegment &lane_segment,
                                       const routing::LaneWaypoint &waypoint) {
@@ -200,11 +200,13 @@ bool RouteSegments::Shrink(const double s, const double look_backward,
   return Shrink(s, waypoint, look_backward, look_forward);
 }
 
+// 筛选掉segments中不在范围内的LaneSegment
 bool RouteSegments::Shrink(const double s, const LaneWaypoint &waypoint,
                            const double look_backward,
                            const double look_forward) {
   double acc_s = 0.0;
   auto iter = begin();
+  // 向后方筛选掉look_backward范围外的LaneSegment
   while (iter != end() && acc_s + iter->Length() < s - look_backward) {
     acc_s += iter->Length();
     ++iter;
@@ -217,10 +219,12 @@ bool RouteSegments::Shrink(const double s, const LaneWaypoint &waypoint,
   if (iter->Length() < kSegmentationEpsilon) {
     ++iter;
   }
+
   erase(begin(), iter);
 
   iter = begin();
   acc_s = 0.0;
+  // 
   while (iter != end() && !WithinLaneSegment(*iter, waypoint)) {
     ++iter;
   }
@@ -235,6 +239,7 @@ bool RouteSegments::Shrink(const double s, const LaneWaypoint &waypoint,
     return true;
   }
   ++iter;
+   // 向前方筛选掉look_forward范围外的LaneSegment
   while (iter != end() && acc_s + iter->Length() < look_forward) {
     acc_s += iter->Length();
     ++iter;
@@ -247,6 +252,8 @@ bool RouteSegments::Shrink(const double s, const LaneWaypoint &waypoint,
   return true;
 }
 
+// waypoint.lane指向最近的lane
+// waypoint.s等于该点在lane上的s,而不是在RouteSegments上的s综合 
 bool RouteSegments::GetWaypoint(const double s, LaneWaypoint *waypoint) const {
   double accumulated_s = 0.0;
   bool has_projection = false;
@@ -269,6 +276,8 @@ bool RouteSegments::GetWaypoint(const double s, LaneWaypoint *waypoint) const {
   return has_projection;
 }
 
+
+// 注意这个s是投影点在passage段起点的累计距离
 bool RouteSegments::GetProjection(const common::math::Vec2d &point,
                                   common::SLPoint *sl_point,
                                   LaneWaypoint *waypoint) const {
@@ -284,6 +293,7 @@ bool RouteSegments::GetProjection(const common::math::Vec2d &point,
              << " on lane " << iter->lane->id().id();
       return false;
     }
+    // kSegmentationEpsilon = 0.2
     if (lane_s < iter->start_s - kSegmentationEpsilon ||
         lane_s > iter->end_s + kSegmentationEpsilon) {
       continue;
@@ -348,12 +358,13 @@ bool RouteSegments::CanDriveFrom(const LaneWaypoint &waypoint) const {
   LaneWaypoint segment_waypoint;
   common::SLPoint route_sl;
   bool has_projection = GetProjection(point, &route_sl, &segment_waypoint);
-  if (!has_projection) {// 车辆无法投影到passage中，不可驶入
+  if (!has_projection) {  // 车辆无法投影到passage中，不可驶入
     AERROR << "No projection from waypoint: " << waypoint.DebugString();
     return false;
   }
   static constexpr double kMaxLaneWidth = 10.0;
-  if (std::fabs(route_sl.l()) > 2 * kMaxLaneWidth) { // 车辆横向距离passage过大，不可驶入
+  if (std::fabs(route_sl.l()) >
+      2 * kMaxLaneWidth) {  // 车辆横向距离passage过大，不可驶入
     return false;
   }
 

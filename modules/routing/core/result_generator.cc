@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+
+/******************************************************************************
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
+
 #include "modules/routing/core/result_generator.h"
 
 #include <algorithm>
@@ -61,11 +68,13 @@ bool ResultGenerator::ExtractBasicPassages(
              << " to " << nodes.at(i).LaneId();
       return false;
     }
+    // 根据是否需要变道,将完整的区域分为不同的可行驶区域
     if (edge->Type() == TET_LEFT || edge->Type() == TET_RIGHT) {
       auto change_lane_type = LEFT;
       if (edge->Type() == TET_RIGHT) {
         change_lane_type = RIGHT;
       }
+      // 根据edge属性,将其添加到passage
       passages->emplace_back(nodes_of_passage, change_lane_type);
       nodes_of_passage.clear();
     }
@@ -103,6 +112,7 @@ bool ResultGenerator::IsReachableToWithChangeLane(
   return false;
 }
 
+// 向后扩展搜索(后退方向)
 void ResultGenerator::ExtendBackward(const TopoRangeManager& range_manager,
                                      const PassageInfo& prev_passage,
                                      PassageInfo* const curr_passage) {
@@ -164,6 +174,7 @@ void ResultGenerator::ExtendBackward(const TopoRangeManager& range_manager,
   }
 }
 
+// 向前扩展搜索(前进方向)
 void ResultGenerator::ExtendForward(const TopoRangeManager& range_manager,
                                     const PassageInfo& next_passage,
                                     PassageInfo* const curr_passage) {
@@ -193,6 +204,7 @@ void ResultGenerator::ExtendForward(const TopoRangeManager& range_manager,
     }
   }
 
+  // 默认第一个点允许进行扩展探索
   bool allowed_to_explore = true;
   while (allowed_to_explore) {
     std::vector<NodeWithRange> succ_set;
@@ -248,6 +260,7 @@ void ResultGenerator::ExtendPassages(const TopoRangeManager& range_manager,
       ExtendBackward(range_manager, passages->at(i - 1), &(passages->at(i)));
     }
   }
+
   for (int i = passage_num - 1; i >= 0; --i) {
     if (i < passage_num - 1) {
       ExtendForward(range_manager, passages->at(i + 1), &(passages->at(i)));
@@ -318,9 +331,11 @@ bool ResultGenerator::GeneratePassageRegion(
     const std::vector<NodeWithRange>& nodes,
     const TopoRangeManager& range_manager, RoutingResponse* const result) {
   std::vector<PassageInfo> passages;
+  // 根据系列节点nodes是否需要变道，将nodes分割成多个passages
   if (!ExtractBasicPassages(nodes, &passages)) {
     return false;
   }
+
   ExtendPassages(range_manager, &passages);
 
   CreateRoadSegments(passages, result);
@@ -337,21 +352,25 @@ void ResultGenerator::AddRoadSegment(
 
   road->set_id(passages[start_index.first].nodes[start_index.second].RoadId());
   for (std::size_t i = start_index.first;
-      i <= end_index.first && i < passages.size(); ++i) {
+       i <= end_index.first && i < passages.size(); ++i) {
     auto* passage = road->add_passage();
     const size_t node_start_index =
-        (i == start_index.first ?
-        std::max((std::size_t)0, start_index.second) : 0);
+        (i == start_index.first ? std::max((std::size_t)0, start_index.second)
+                                : 0);
+
     const auto node_begin_iter = passages[i].nodes.cbegin() + node_start_index;
-    ADEBUG<< "start node: " << node_begin_iter->LaneId() << ": "
+    ADEBUG << "start node: " << node_begin_iter->LaneId() << ": "
            << node_begin_iter->StartS() << "; " << node_begin_iter->EndS();
+
     const size_t node_end_index =
-         (i == end_index.first ?
-         std::min(end_index.second, passages[i].nodes.size() - 1) :
-         passages[i].nodes.size() - 1);
+        (i == end_index.first
+             ? std::min(end_index.second, passages[i].nodes.size() - 1)
+             : passages[i].nodes.size() - 1);
+
     const auto node_last_iter = passages[i].nodes.cbegin() + node_end_index;
     ADEBUG << "last node: " << node_last_iter->LaneId() << ": "
            << node_last_iter->StartS() << "; " << node_last_iter->EndS();
+           
     auto node_end_iter = node_last_iter + 1;
     LaneNodesToPassageRegion(node_begin_iter, node_end_iter, passage);
     if (start_index.first == end_index.first) {
@@ -369,10 +388,24 @@ void ResultGenerator::CreateRoadSegments(
   ACHECK(!passages.empty()) << "passages empty";
   NodeWithRange fake_node_range(passages.front().nodes.front());
   bool in_change_lane = false;
+  //  start_index第一个参数为passage索引,第二个参数为node索引
   std::pair<std::size_t, std::size_t> start_index(0, 0);
   for (std::size_t i = 0; i < passages.size(); ++i) {
     const auto& curr_nodes = passages[i].nodes;
     for (std::size_t j = 0; j < curr_nodes.size(); ++j) {
+      // 如果可以通过换道到达则继续搜索,直到节点不能通过换道到达为止
+
+      /**
+       * bool IsReachableToWithChangeLane(
+       *    const TopoNode* to_node, const PassageInfo& from_nodes,
+       *    NodeWithRange* reachable_node)
+       *
+       *
+       * bool IsReachableFromWithChangeLane(
+       *  const TopoNode* from_node, const PassageInfo& to_nodes,
+       *  NodeWithRange* reachable_node)
+       *
+       * **/
       if ((i + 1 < passages.size() &&
            IsReachableToWithChangeLane(curr_nodes[j].GetTopoNode(),
                                        passages[i + 1], &fake_node_range)) ||
@@ -386,21 +419,26 @@ void ResultGenerator::CreateRoadSegments(
       } else {
         if (in_change_lane) {
           ADEBUG << "start_index(" << start_index.first << ", "
-                 << start_index.second
-                 << ") end_index(" << i << ", " << j - 1 << ")";
+                 << start_index.second << ") end_index(" << i << ", " << j - 1
+                 << ")";
+          // 将可换道到达的节点作为一段road
           AddRoadSegment(passages, start_index, {i, j - 1}, result);
         }
-        ADEBUG << "start_index(" << i << ", " << j
-               << ") end_index(" << i << ", " << j << ")";
+
+        ADEBUG << "start_index(" << i << ", " << j << ") end_index(" << i
+               << ", " << j << ")";
+        // 将不可换道到达的节点作为单独一段road
         AddRoadSegment(passages, {i, j}, {i, j}, result);
         in_change_lane = false;
       }
     }
   }
+
   if (in_change_lane) {
     ADEBUG << "start_index(" << start_index.first << ", " << start_index.second
            << ") end_index(" << passages.size() - 1 << ", "
            << passages.back().nodes.size() - 1 << ")";
+    // 如果最后一个节点仍可通过换道到达,也将其单独作为road创建
     AddRoadSegment(passages, start_index,
                    {passages.size() - 1, passages.back().nodes.size() - 1},
                    result);

@@ -106,6 +106,8 @@ bool RoutingComponent::Init() {
  * channel: "/apollo/routing_request"
  * **/
 bool RoutingComponent::Proc(const std::shared_ptr<RoutingRequest>& request) {
+
+  
   auto response = std::make_shared<RoutingResponse>();
   
   if (!routing_.Process(request, response.get())) {

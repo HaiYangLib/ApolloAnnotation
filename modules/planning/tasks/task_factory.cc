@@ -65,6 +65,10 @@ apollo::common::util::Factory<
 std::unordered_map<TaskConfig::TaskType, TaskConfig, std::hash<int>>
     TaskFactory::default_task_configs_;
 
+/**
+ * config：
+ * modules/planning/conf/planning_config.pb.txt
+ * **/
 void TaskFactory::Init(const PlanningConfig& config,
                        const std::shared_ptr<DependencyInjector>& injector) {
   ///////////////////////////
@@ -75,18 +79,21 @@ void TaskFactory::Init(const PlanningConfig& config,
          const std::shared_ptr<DependencyInjector>& injector) -> Task* {
         return new CreepDecider(config, injector);
       });
+
   task_factory_.Register(
       TaskConfig::LANE_CHANGE_DECIDER,
       [](const TaskConfig& config,
          const std::shared_ptr<DependencyInjector>& injector) -> Task* {
         return new LaneChangeDecider(config, injector);
       });
+
   task_factory_.Register(
       TaskConfig::OPEN_SPACE_FALLBACK_DECIDER,
       [](const TaskConfig& config,
          const std::shared_ptr<DependencyInjector>& injector) -> Task* {
         return new OpenSpaceFallbackDecider(config, injector);
       });
+      
   task_factory_.Register(
       TaskConfig::OPEN_SPACE_PRE_STOP_DECIDER,
       [](const TaskConfig& config,

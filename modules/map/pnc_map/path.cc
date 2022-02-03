@@ -131,6 +131,7 @@ LaneWaypoint LeftNeighborWaypoint(const LaneWaypoint& waypoint) {
   return neighbor;
 }
 
+// 将同一lane的不同段拼接起来
 void LaneSegment::Join(std::vector<LaneSegment>* segments) {
   static constexpr double kSegmentDelta = 0.5;
   std::size_t k = 0;
@@ -141,16 +142,19 @@ void LaneSegment::Join(std::vector<LaneSegment>* segments) {
            segments->at(i).lane == segments->at(j + 1).lane) {
       ++j;
     }
+
     auto& segment_k = segments->at(k);
     segment_k.lane = segments->at(i).lane;
     segment_k.start_s = segments->at(i).start_s;
     segment_k.end_s = segments->at(j).end_s;
+
     if (segment_k.start_s < kSegmentDelta) {
       segment_k.start_s = 0.0;
     }
     if (segment_k.end_s + kSegmentDelta >= segment_k.lane->total_length()) {
       segment_k.end_s = segment_k.lane->total_length();
     }
+
     i = j + 1;
     ++k;
   }
@@ -313,6 +317,7 @@ Path::Path(const std::vector<MapPathPoint>& path_points,
 
 Path::Path(const std::vector<LaneSegment>& segments)
     : lane_segments_(segments) {
+  // std::vector<MapPathPoint> path_points_;
   for (const auto& segment : lane_segments_) {
     const auto points = MapPathPoint::GetPointsFromLane(
         segment.lane, segment.start_s, segment.end_s);
@@ -348,13 +353,51 @@ Path::Path(std::vector<MapPathPoint>&& path_points,
 }
 
 void Path::Init() {
+  /**
+   * 初始化:
+   * accumulated_s_
+   * segments_
+   * unit_directions_
+   * num_sample_points_
+   * **/
   InitPoints();
+
+  /**
+   * 初始化：
+   * lane_segments_
+   * lane_accumulated_s_
+   * lane_segments_to_next_point_
+   * **/
   InitLaneSegments();
+
+  /**
+   * 初始化:
+   * last_point_index_
+   * **/
   InitPointIndex();
-  InitWidth();
+
+  /**
+   * 初始化:
+   * lane_left_width_
+   * lane_right_width_
+   * road_left_width_
+   * road_right_width_
+   * **/
+  InitWidth(); 
+   
+  /**
+   * 初始化重叠其
+   * **/ 
   InitOverlaps();
 }
 
+/**
+ * 初始化:
+ * accumulated_s_
+ * segments_
+ * unit_directions_
+ * num_sample_points_
+ * **/
 void Path::InitPoints() {
   num_points_ = static_cast<int>(path_points_.size());
   CHECK_GE(num_points_, 2);
@@ -390,6 +433,12 @@ void Path::InitPoints() {
   CHECK_EQ(segments_.size(), num_segments_);
 }
 
+/**
+ * 初始化：
+ * lane_segments_
+ * lane_accumulated_s_
+ * lane_segments_to_next_point_
+ * **/
 void Path::InitLaneSegments() {
   if (lane_segments_.empty()) {
     for (int i = 0; i + 1 < num_points_; ++i) {
@@ -401,11 +450,14 @@ void Path::InitLaneSegments() {
     }
   }
   LaneSegment::Join(&lane_segments_);
+
   if (lane_segments_.empty()) {
     return;
   }
+
   lane_accumulated_s_.resize(lane_segments_.size());
   lane_accumulated_s_[0] = lane_segments_[0].Length();
+
   for (std::size_t i = 1; i < lane_segments_.size(); ++i) {
     lane_accumulated_s_[i] =
         lane_accumulated_s_[i - 1] + lane_segments_[i].Length();
@@ -413,6 +465,7 @@ void Path::InitLaneSegments() {
 
   lane_segments_to_next_point_.clear();
   lane_segments_to_next_point_.reserve(num_points_);
+
   for (int i = 0; i + 1 < num_points_; ++i) {
     LaneSegment lane_segment;
     if (FindLaneSegment(path_points_[i], path_points_[i + 1], &lane_segment)) {
@@ -421,9 +474,17 @@ void Path::InitLaneSegments() {
       lane_segments_to_next_point_.push_back(LaneSegment());
     }
   }
+
   CHECK_EQ(lane_segments_to_next_point_.size(), num_segments_);
 }
 
+/**
+ * 初始化:
+ * lane_left_width_
+ * lane_right_width_
+ * road_left_width_
+ * road_right_width_
+ * **/
 void Path::InitWidth() {
   lane_left_width_.clear();
   lane_left_width_.reserve(num_sample_points_);
@@ -439,6 +500,8 @@ void Path::InitWidth() {
   for (int i = 0; i < num_sample_points_; ++i) {
     const MapPathPoint point = GetSmoothPoint(s);
     if (point.lane_waypoints().empty()) {
+      // DEFINE_double(default_lane_width, 3.048,
+      //     "default lane width is about 10 feet");
       lane_left_width_.push_back(FLAGS_default_lane_width / 2.0);
       lane_right_width_.push_back(FLAGS_default_lane_width / 2.0);
 
@@ -464,6 +527,7 @@ void Path::InitWidth() {
     }
     s += kSampleDistance;
   }
+
   CHECK_EQ(lane_left_width_.size(), num_sample_points_);
   CHECK_EQ(lane_right_width_.size(), num_sample_points_);
 
@@ -471,6 +535,10 @@ void Path::InitWidth() {
   CHECK_EQ(road_right_width_.size(), num_sample_points_);
 }
 
+/**
+ * 初始化:
+ * last_point_index_
+ * **/
 void Path::InitPointIndex() {
   last_point_index_.clear();
   last_point_index_.reserve(num_sample_points_);
@@ -482,6 +550,7 @@ void Path::InitPointIndex() {
       ++last_index;
     }
     last_point_index_.push_back(last_index);
+    // kSampleDistance = 0.25
     s += kSampleDistance;
   }
   CHECK_EQ(last_point_index_.size(), num_sample_points_);
@@ -620,6 +689,12 @@ double Path::GetSFromIndex(const InterpolatedIndex& index) const {
   return accumulated_s_[index.id] + index.offset;
 }
 
+/**
+ * class InterpolatedIndex {
+ *  int id = 0;
+ *  double offset = 0.0;
+ * };
+ * **/
 InterpolatedIndex Path::GetIndexFromS(double s) const {
   if (s <= 0.0) {
     return {0, 0.0};
@@ -628,6 +703,7 @@ InterpolatedIndex Path::GetIndexFromS(double s) const {
   if (s >= length_) {
     return {num_points_ - 1, 0.0};
   }
+  // kSampleDistance = 0.25
   const int sample_id = static_cast<int>(s / kSampleDistance);
   if (sample_id >= num_sample_points_) {
     return {num_points_ - 1, 0.0};
@@ -637,6 +713,7 @@ InterpolatedIndex Path::GetIndexFromS(double s) const {
   int high = (next_sample_id < num_sample_points_
                   ? std::min(num_points_, last_point_index_[next_sample_id] + 1)
                   : num_points_);
+
   while (low + 1 < high) {
     const int mid = (low + high) / 2;
     if (accumulated_s_[mid] <= s) {
@@ -645,6 +722,7 @@ InterpolatedIndex Path::GetIndexFromS(double s) const {
       high = mid;
     }
   }
+
   return {low, s - accumulated_s_[low]};
 }
 
@@ -796,7 +874,7 @@ bool Path::GetProjection(const Vec2d& point, double* accumulate_s,
   CHECK_GE(num_points_, 2);
   *min_distance = std::numeric_limits<double>::infinity();
   int min_index = 0;
-  for (int i = 0; i < num_segments_; ++i) {
+  for (int i = 0; i < num_segments_; ++i) { 
     const double distance = segments_[i].DistanceSquareTo(point);
     if (distance < *min_distance) {
       min_index = i;

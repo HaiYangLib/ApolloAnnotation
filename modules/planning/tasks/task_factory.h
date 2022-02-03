@@ -49,6 +49,7 @@ class TaskFactory {
                     const std::shared_ptr<DependencyInjector> &injector),
           std::hash<int>>>
       task_factory_;
+      
   static std::unordered_map<TaskConfig::TaskType, TaskConfig, std::hash<int>>
       default_task_configs_;
 };

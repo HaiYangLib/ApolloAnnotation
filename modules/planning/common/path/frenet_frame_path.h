@@ -29,6 +29,14 @@
 namespace apollo {
 namespace planning {
 
+/**
+ * message FrenetFramePoint {
+ *  optional double s = 1;
+ *  optional double l = 2;
+ *  optional double dl = 3;
+ *  optional double ddl = 4;
+ * }
+ **/
 class FrenetFramePath : public std::vector<common::FrenetFramePoint> {
  public:
   FrenetFramePath() = default;

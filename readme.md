@@ -1,10 +1,10 @@
-# Annotation for Apollo
+# 导论
 
 **本人邮箱：hanhy20@mails.jlu.edu.cn** **欢迎交流**。
 
-基于[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)为其各个模块 以及 **Cyber(5.0)框架** 的部分源码作了解析和注释
+基于[**apollo-v6.0.0**](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)为其各个模块 以及 **Cyber框架** 的部分源码作了解析和注释
 
-* 在代码上传时，某些大文件(**主要是某些模型文件**)没有上传,下面给出了这些文件的详细路径，如果有需要的，可以去Apollo的github上下载，对应版本[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)
+* 在代码上传时，某些大文件(**主要是某些模型文件**)没有上传,下面给出了这些文件的详细路径，如果有需要的，可以去Apollo的github上下载，对应版本**[apollo-v6.0.0](https://github.com/ApolloAuto/apollo/releases/tag/v6.0.0)**
 
   
 
@@ -35,13 +35,19 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 与注释相关的文档，全部保存在**doc文件夹**中(详细内容未上传)，为了便于查找本readme文件会提供相应查找跳转链接。
 
-## Cyber
+## 实用工具篇
+
+介绍Cpp常用的一些开源库,如**protobuf glog gflags poco boost ros** 等, 主要涉及他们的安装及基础使用，更加具体的使用在Cyber篇的cyber_cmake源码中会体现。
+
+这些第三方库很多在apollo中会用到, 属于比较常用的实用工具。
+
+## Cyber篇
 
 完成了**Cyber的cmake版移植**，详细代码见**cyber_cmake**
 
 提供了Cyber所需的第三方库的安装脚本,在thritd_party目录下
 
-## Perception
+## 感知篇
 
 针对**感知模块(Perception)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
 
@@ -49,25 +55,20 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 * **Liadr子模块**的注释工作主要涉及：Lidar**数据预处理**，**Pointpillars算法**实现过程的分析与代码注释
 * **Camera子模块**的注释工作暂时未做
 
-## Prediction
+## 预测篇
 
 暂时未做工作
 
-## Routing&Map
+##  **[导航篇](doc/自动驾驶导论.md#导航篇)**
 
-**[HDMap和PncMap分析](doc/routing&map/hd&pnc_map.md)**
 
-## Planning
+
+## [规划篇](doc/自动驾驶导论.md#规划篇)
 
 针对**规划模块(Planning)**,   [ApolloAnnotation](https://github.com/HaiYangLib/ApolloAnnotation)做了以下工作：
 
 * 对**Lattice Planner**做了注释工作
-
-**[Planning概要说明](doc/planning/planning概要说明.md)**
-
-**[Frenet坐标系推导](doc/planning/frenet坐标系推导.md)**
-
-**[Planning源码解析](doc/planning/planning源码解析.md)**
+* 对**Frenet坐标系**做了推导
 
  
 

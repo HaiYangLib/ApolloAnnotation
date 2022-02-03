@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "absl/strings/match.h"
-
 #include "cyber/common/file.h"
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/math/math_utils.h"
@@ -74,7 +73,6 @@ GraphCreator::GraphCreator(const std::string& base_map_file_path,
       dump_topo_file_path_(dump_topo_file_path),
       routing_conf_(routing_conf) {}
 
-
 /**
  * 核心函数：建立拓扑地图函数Create()
  * **/
@@ -82,12 +80,14 @@ bool GraphCreator::Create() {
   /**
    * 这里注意，有2种格式，一种是Opendrive格式，通过OpendriveAdapter来读取
    * 另外一种是apollo自己定义的格式(protobuf格式)。
-   * 
+   *
    * 成员变量pbmap_在下面文件中定义：
+   *
+   *
    * modules/map/proto/map.proto
    * message Map {
    * optional Header header = 1;
-   *  
+   *
    * repeated Crosswalk crosswalk = 2;
    * repeated Junction junction = 3;
    * repeated Lane lane = 4;
@@ -110,7 +110,6 @@ bool GraphCreator::Create() {
       return false;
     }
   } else {
-
     /**
      * 从输入路径加载protobuf格式地图到pbmap_
      * **/
@@ -120,13 +119,12 @@ bool GraphCreator::Create() {
     }
   }
 
-
   AINFO << "Number of lanes: " << pbmap_.lane_size();
 
   /**
    * 成员成员变量在下面文件中定义:
    * modules/routing/proto/topo_graph.proto
-   * 
+   *
    * graph_为最后得到的图，消息格式在topo_graph.proto中申明
    *
    * message Graph {
@@ -162,11 +160,11 @@ bool GraphCreator::Create() {
    * 初始化禁止车道，将类型不为city_driving的车道设置放入set容器里
    * **/
   InitForbiddenLanes();
-  
+
   /**
    * 从配置文件中读取最小掉头半径
    * 加载最小转弯半径\apollo\modules\common\configs\proto\vehicle_config.proto
-   * 
+   *
    * **/
   const double min_turn_radius =
       VehicleConfigHelper::GetConfig().vehicle_param().min_turn_radius();
@@ -194,7 +192,6 @@ bool GraphCreator::Create() {
       continue;
     }
 
-    
     AINFO << "Current lane id: " << lane_id;
     // 存储node index和lane id的关系
     node_index_map_[lane_id] = graph_.node_size();
@@ -235,7 +232,14 @@ bool GraphCreator::Create() {
     AddEdge(from_node, lane.successor_id(), Edge::FORWARD);
 
     /**
+     * 
+     * DEFINE_double(min_length_for_lane_change, 1.0,
+     *         "meters, which is 100 feet.  Minimum distance needs to travel on "
+     *         "a lane before making a lane change. Recommended by "
+     *         "https://www.oregonlaws.org/ors/811.375");
+     * 
      * 如果车道长度小于最小变道长度，则直接进入下一个循环
+     * 
      * **/
     if (lane.length() < FLAGS_min_length_for_lane_change) {
       continue;
@@ -266,13 +270,12 @@ bool GraphCreator::Create() {
     return false;
   }
 
-
   auto type_pos = dump_topo_file_path_.find_last_of(".") + 1;
   std::string bin_file = dump_topo_file_path_.replace(type_pos, 3, "bin");
   std::string txt_file = dump_topo_file_path_.replace(type_pos, 3, "txt");
-  
+
   /**
-   * 输出拓扑地图graph_到bin,txt  
+   * 输出拓扑地图graph_到bin,txt
    * **/
   if (!cyber::common::SetProtoToASCIIFile(graph_, txt_file)) {
     AERROR << "Failed to dump topo data into file " << txt_file;
@@ -311,6 +314,7 @@ void GraphCreator::AddEdge(const Node& from_node,
     if (showed_edge_id_set_.count(edge_id) != 0) {
       continue;
     }
+    
     showed_edge_id_set_.insert(edge_id);
     const auto& iter = node_index_map_.find(to_id.id());
     if (iter == node_index_map_.end()) {
@@ -321,7 +325,6 @@ void GraphCreator::AddEdge(const Node& from_node,
                             graph_.add_edge());
   }
 }
-
 
 /**
  * 判断是否是有效的掉头，根据最小转弯半径而定
@@ -366,9 +369,15 @@ bool GraphCreator::IsValidUTurn(const hdmap::Lane& lane, const double radius) {
   return p1.DistanceTo(center) >= radius;
 }
 
-
 /**
  * 初始化被禁止的车道(类型不是city_driving的)
+ * enum LaneType {               //车道类型
+ *   NONE = 1;                   //无
+ *   CITY_DRIVING = 2;           //城市道路
+ *   BIKING = 3;                 //自行车
+ *   SIDEWALK = 4;               //人行道
+ *   PARKING = 5;                //停车
+ * };
  * **/
 void GraphCreator::InitForbiddenLanes() {
   for (const auto& lane : pbmap_.lane()) {

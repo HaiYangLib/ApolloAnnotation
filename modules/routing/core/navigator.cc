@@ -93,23 +93,22 @@ void PrintDebugData(const std::vector<NodeWithRange>& nodes) {
 }  // namespace
 
 Navigator::Navigator(const std::string& topo_file_path) {
-
   /**
    * Graph在下面文件中定义：
    * modules/routing/proto/topo_graph.proto
-   * 
+   *
    * message Graph {
    * optional string hdmap_version = 1;
    * optional string hdmap_district = 2;
    * repeated Node node = 3;
    * repeated Edge edge = 4;
    * }
-   * 
-   * 
+   *
+   *
    * topo_file_path的一个候选是：
    * modules/map/data/demo/routing_map.txt
-   * 
-   * 
+   *
+   *
    * routing_map由GraphCreator生成
    * **/
 
@@ -119,11 +118,11 @@ Navigator::Navigator(const std::string& topo_file_path) {
     return;
   }
 
-
   /**
    * 成员变量：
+   * 拓扑地图
    * std::unique_ptr<TopoGraph> graph_;
-   * 
+   *
    * TopoGraph在下面文件中定义：
    * modules/routing/graph/topo_graph.cc
    * **/
@@ -133,11 +132,11 @@ Navigator::Navigator(const std::string& topo_file_path) {
           << topo_file_path;
     return;
   }
-  
+
   black_list_generator_.reset(new BlackListRangeGenerator);
   result_generator_.reset(new ResultGenerator);
   is_ready_ = true;
-  
+
   AINFO << "The navigator is ready.";
 }
 
@@ -178,15 +177,28 @@ bool Navigator::MergeRoute(
   return true;
 }
 
+
+/**
+ * 在routing请求中可以指定黑名单路和车道，这样routing请求将不会计算这些车道。
+ * 应用场景是需要避开拥堵路段，这需要能够根据情况实时请求，
+ * 在routing_request中可以设置黑名单也刚好可以满足上面的需求
+ * **/
 bool Navigator::SearchRouteByStrategy(
     const TopoGraph* graph, const std::vector<const TopoNode*>& way_nodes,
     const std::vector<double>& way_s,
     std::vector<NodeWithRange>* const result_nodes) const {
   std::unique_ptr<Strategy> strategy_ptr;
+
+  /**
+   * DEFINE_bool(enable_change_lane_in_result, true,
+   *     "contain change lane operator in result");
+   * **/
+  // 使用A*算法
   strategy_ptr.reset(new AStarStrategy(FLAGS_enable_change_lane_in_result));
 
   result_nodes->clear();
   std::vector<NodeWithRange> node_vec;
+  // 遍历routing_request节点
   for (size_t i = 1; i < way_nodes.size(); ++i) {
     const auto* way_start = way_nodes[i - 1];
     const auto* way_end = way_nodes[i];
@@ -194,16 +206,33 @@ bool Navigator::SearchRouteByStrategy(
     double way_end_s = way_s[i];
 
     TopoRangeManager full_range_manager = topo_range_manager_;
+    
+    /**
+     * 添加黑名单，这里主要是把车道根据起点和终点做分割。
+     * 
+     * "AddBlackMapFromTerminal"中会把节点(这里的节点就是lane)切分，
+     * 切分之后的数据保存在"TopoRangeManager"中，
+     * 而"SubTopoGraph"会根据"TopoRangeManager"中的数据初始化子图
+     * 节点就是一条lane，而子节点是对lane做了切割，把一条lane根据黑名单区域，生成几个子节点。
+     * **/
     black_list_generator_->AddBlackMapFromTerminal(
         way_start, way_end, way_start_s, way_end_s, &full_range_manager);
 
+    /**
+     * 因为对车道做了分割，这里会创建子图，
+     * 比如一个车道分成2个子节点，2个子节点会创建一张子图。
+     * **/
     SubTopoGraph sub_graph(full_range_manager.RangeMap());
+
+    // 获取起点
     const auto* start = sub_graph.GetSubNodeWithS(way_start, way_start_s);
     if (start == nullptr) {
       AERROR << "Sub graph node is nullptr, origin node id: "
              << way_start->LaneId() << ", s:" << way_start_s;
       return false;
     }
+
+    // 获取终点
     const auto* end = sub_graph.GetSubNodeWithS(way_end, way_end_s);
     if (end == nullptr) {
       AERROR << "Sub graph node is nullptr, origin node id: "
@@ -212,6 +241,7 @@ bool Navigator::SearchRouteByStrategy(
     }
 
     std::vector<NodeWithRange> cur_result_nodes;
+    // 通过Astar查找最优路径
     if (!strategy_ptr->Search(graph, &sub_graph, start, end,
                               &cur_result_nodes)) {
       AERROR << "Failed to search route with waypoint from " << start->LaneId()
@@ -219,10 +249,12 @@ bool Navigator::SearchRouteByStrategy(
       return false;
     }
 
+    // 保存结果到node_vec
     node_vec.insert(node_vec.end(), cur_result_nodes.begin(),
                     cur_result_nodes.end());
   }
 
+  // 合并Route
   if (!MergeRoute(node_vec, result_nodes)) {
     AERROR << "Failed to merge route.";
     return false;
@@ -230,8 +262,16 @@ bool Navigator::SearchRouteByStrategy(
   return true;
 }
 
+/**
+ * 步骤1： 对请求参数进行检查；
+ * 步骤2:  判断自身是否处于就绪状态；
+ * 步骤3： 初始化请求需要的参数；
+ * 步骤4： 执行搜索算法；
+ * 步骤5： 组装搜索结果；
+ * **/
 bool Navigator::SearchRoute(const RoutingRequest& request,
                             RoutingResponse* const response) {
+  // 步骤1
   if (!ShowRequestInfo(request, graph_.get())) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_REQUEST,
                  "Error encountered when reading request point!",
@@ -239,13 +279,16 @@ bool Navigator::SearchRoute(const RoutingRequest& request,
     return false;
   }
 
+  // 步骤2
   if (!IsReady()) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_NOT_READY, "Navigator is not ready!",
                  response->mutable_status());
     return false;
   }
+
   std::vector<const TopoNode*> way_nodes;
   std::vector<double> way_s;
+  // 步骤3 根据request中的waypoint填充way_nodes, way_s
   if (!Init(request, graph_.get(), &way_nodes, &way_s)) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_NOT_READY,
                  "Failed to initialize navigator!", response->mutable_status());
@@ -253,20 +296,23 @@ bool Navigator::SearchRoute(const RoutingRequest& request,
   }
 
   std::vector<NodeWithRange> result_nodes;
+  // 步骤4
   if (!SearchRouteByStrategy(graph_.get(), way_nodes, way_s, &result_nodes)) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_RESPONSE,
                  "Failed to find route with request!",
                  response->mutable_status());
     return false;
   }
+
   if (result_nodes.empty()) {
     SetErrorCode(ErrorCode::ROUTING_ERROR_RESPONSE, "Failed to result nodes!",
                  response->mutable_status());
     return false;
   }
+
   result_nodes.front().SetStartS(request.waypoint().begin()->s());
   result_nodes.back().SetEndS(request.waypoint().rbegin()->s());
-
+  // 步骤5 组装搜索结果
   if (!result_generator_->GeneratePassageRegion(
           graph_->MapVersion(), request, result_nodes, topo_range_manager_,
           response)) {
@@ -275,6 +321,7 @@ bool Navigator::SearchRoute(const RoutingRequest& request,
                  response->mutable_status());
     return false;
   }
+
   SetErrorCode(ErrorCode::OK, "Success!", response->mutable_status());
 
   PrintDebugData(result_nodes);

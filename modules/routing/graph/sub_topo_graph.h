@@ -94,6 +94,19 @@ class SubTopoGraph {
  private:
   std::vector<std::shared_ptr<TopoNode>> topo_nodes_;
   std::vector<std::shared_ptr<TopoEdge>> topo_edges_;
+
+
+  /**
+   * 
+   * auto& sub_node_vec = sub_node_range_sorted_map_[topo_node];
+   * auto& sub_node_set = sub_node_map_[topo_node]; 
+   * 
+   * sub_node_vec.emplace_back(sub_topo_node_ptr.get(), range);
+   * sub_node_set.insert(sub_topo_node_ptr.get());
+   * 
+   * sub_node_range_sorted_map_和sub_node_map_存放的内容相似
+   * 但前者带有range
+   * **/
   std::unordered_map<const TopoNode*, std::vector<NodeWithRange>>
       sub_node_range_sorted_map_;
   std::unordered_map<const TopoNode*, std::unordered_set<TopoNode*>>

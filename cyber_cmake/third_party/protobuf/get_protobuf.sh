@@ -13,9 +13,6 @@ export CXX=/usr/bin/g++
 PROTOBUF_VERSION=v3.3.0
 PROTOBUF_BASENAME=protobuf-${PROTOBUF_VERSION}-${CXX_TAG}
 
-PROTOBUF_LIBCXX_INCLUDE=${PWD}/${PROTOBUF_BASENAME}-libcxx-install/include
-PROTOBUF_LIBCXX_LIBPATH=${PWD}/${PROTOBUF_BASENAME}-libcxx-install/lib
-
 PROTOBUF_LIBSTDCXX_INCLUDE=${PWD}/${PROTOBUF_BASENAME}-libstdcxx-install/include
 PROTOBUF_LIBSTDCXX_LIBPATH=${PWD}/${PROTOBUF_BASENAME}-libstdcxx-install/lib
 
@@ -23,8 +20,8 @@ PROTOBUF_LIBSTDCXX_LIBPATH=${PWD}/${PROTOBUF_BASENAME}-libstdcxx-install/lib
 build_protobuf() {
 
     rm -Rf \
-        ${PROTOBUF_BASENAME}-libcxx-build ${PROTOBUF_BASENAME}-libstdcxx-build \
-        ${PROTOBUF_BASENAME}-libcxx-install ${PROTOBUF_BASENAME}-libstdcxx-install
+        ${PROTOBUF_BASENAME}-libstdcxx-build \
+        ${PROTOBUF_BASENAME}-libstdcxx-install
 
     if [ -d ${PROTOBUF_BASENAME}-source ]; then
         echo "${PROTOBUF_BASENAME}-source already existence"

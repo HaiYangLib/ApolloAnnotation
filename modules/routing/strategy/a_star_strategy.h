@@ -41,11 +41,23 @@ class AStarStrategy : public Strategy {
   double GetResidualS(const TopoEdge* edge, const TopoNode* to_node);
 
  private:
+  // 允许变换车道
   bool change_lane_enabled_;
+  // OPEN集
   std::unordered_set<const TopoNode*> open_set_;
+  // CLOSED集
   std::unordered_set<const TopoNode*> closed_set_;
+  // 子父结点键值对
+  // key: 子结点
+  // value: 父结点
   std::unordered_map<const TopoNode*, const TopoNode*> came_from_;
+  // 移动代价键值对
+  // key: Node
+  // value: 从源结点移动到Node的代价
   std::unordered_map<const TopoNode*, double> g_score_;
+  // 结点的进入距离键值对
+  // key: Node
+  // value: Node的进入距离
   std::unordered_map<const TopoNode*, double> enter_s_;
 };
 

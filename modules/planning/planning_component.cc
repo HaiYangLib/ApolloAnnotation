@@ -46,7 +46,7 @@ using apollo::storytelling::Stories;
 
 /**
  *
- *
+ * 
  * **/
 bool PlanningComponent::Init() {
   injector_ = std::make_shared<DependencyInjector>();
@@ -167,6 +167,12 @@ bool PlanningComponent::Init() {
  * channel: "/apollo/prediction"
  * channel: "/apollo/canbus/chassis"
  * channel: "/apollo/localization/pose"
+ * 
+ * 步骤1: 检查是否需要重新规划线路。
+ * 步骤2: 根据输入信息,为成员变量local_view_(LocalView)赋值,并做检查
+ * 步骤3: 进行一次规划
+ * 步骤4: 发布规划结果adc_trajectory_pb(ADCTrajectory)
+ * 步骤5: 将规划结果adc_trajectory_pb加入到历史记录
  * **/
 bool PlanningComponent::Proc(
     const std::shared_ptr<prediction::PredictionObstacles>&
@@ -180,6 +186,7 @@ bool PlanningComponent::Proc(
   /**
    * 检查是否需要重新规划线路。
    * **/
+  // 步骤1 
   CheckRerouting();
 
   // process fused input data
@@ -198,6 +205,7 @@ bool PlanningComponent::Proc(
    *
    * LocalView会保存着Planning所需要的信息
    * **/
+  // 步骤2
   local_view_.prediction_obstacles = prediction_obstacles;
   local_view_.chassis = chassis;
   local_view_.localization_estimate = localization_estimate;
@@ -264,6 +272,7 @@ bool PlanningComponent::Proc(
    * RunOnce是规划模块的核心代码
    * 根据local_view_保存的信息，生成一条adc_trajectory_pb
    * **/
+  // 步骤3 
   ADCTrajectory adc_trajectory_pb;
   planning_base_->RunOnce(local_view_, &adc_trajectory_pb);
   common::util::FillHeader(node_->Name(), &adc_trajectory_pb);
@@ -275,9 +284,12 @@ bool PlanningComponent::Proc(
     p.set_relative_time(p.relative_time() + dt);
   }
 
+  // 步骤4
   planning_writer_->Write(adc_trajectory_pb);
 
   // record in history
+
+  // 步骤5
   auto* history = injector_->history();
   history->Add(adc_trajectory_pb);
 
@@ -286,6 +298,7 @@ bool PlanningComponent::Proc(
 
 /**
  * rerouting对应的proto
+ * modules/planning/proto/planning_status.proto
  * message ReroutingStatus {
  *  optional double last_rerouting_time = 1;
  *  optional bool need_rerouting = 2 [default = false];

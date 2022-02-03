@@ -50,15 +50,18 @@ void ConvertOutRange(const RepeatedPtrField<CurveRange>& range_vec,
     NodeSRange s_range(s_s, e_s);
     out_range->push_back(std::move(s_range));
   }
+
   sort(out_range->begin(), out_range->end());
   int max_index = -1;
   double max_diff = 0.0;
+
   for (size_t i = 0; i < out_range->size(); ++i) {
     if (out_range->at(i).Length() > max_diff) {
       max_index = static_cast<int>(i);
       max_diff = out_range->at(i).Length();
     }
   }
+  
   *prefer_index = max_index;
 }
 
@@ -96,6 +99,7 @@ bool TopoNode::IsOutRangeEnough(const std::vector<NodeSRange>& range_vec,
 
 TopoNode::TopoNode(const Node& node)
     : pb_node_(node), start_s_(0.0), end_s_(pb_node_.length()) {
+  //  kLenghtEpsilon = 1e-6
   ACHECK(pb_node_.length() > kLenghtEpsilon)
       << "Node length is invalid in pb: " << pb_node_.DebugString();
   Init();
@@ -116,6 +120,7 @@ void TopoNode::Init() {
   if (!FindAnchorPoint()) {
     AWARN << "Be attention!!! Find anchor point failed for lane: " << LaneId();
   }
+
   ConvertOutRange(pb_node_.left_out(), start_s_, end_s_,
                   &left_out_sorted_range_, &left_prefer_range_index_);
 
@@ -125,11 +130,15 @@ void TopoNode::Init() {
 
   ConvertOutRange(pb_node_.right_out(), start_s_, end_s_,
                   &right_out_sorted_range_, &right_prefer_range_index_);
+
   is_right_range_enough_ = (right_prefer_range_index_ >= 0) &&
                            right_out_sorted_range_[right_prefer_range_index_]
                                .IsEnoughForChangeLane();
 }
 
+/**
+ * AnchorPoint的位置大概在StartS()和EndS()中间
+ * **/
 bool TopoNode::FindAnchorPoint() {
   double total_size = 0;
   for (const auto& seg : CentralCurve().segment()) {
@@ -137,6 +146,7 @@ bool TopoNode::FindAnchorPoint() {
   }
   double rate = (StartS() + EndS()) / 2.0 / Length();
   int anchor_index = static_cast<int>(total_size * rate);
+
   for (const auto& seg : CentralCurve().segment()) {
     if (anchor_index < seg.line_segment().point_size()) {
       SetAnchorPoint(seg.line_segment().point(anchor_index));

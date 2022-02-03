@@ -87,6 +87,7 @@ class TopoNode {
 
   double start_s_;
   double end_s_;
+  
   bool is_left_range_enough_;
   int left_prefer_range_index_;
   bool is_right_range_enough_;
@@ -142,3 +143,9 @@ class TopoEdge {
 
 }  // namespace routing
 }  // namespace apollo
+
+
+
+
+
+

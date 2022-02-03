@@ -28,6 +28,33 @@
 namespace apollo {
 namespace planning {
 
+/**
+ * message PathPoint {
+  // coordinates
+  optional double x = 1;
+  optional double y = 2;
+  optional double z = 3;
+
+  // direction on the x-y plane
+  optional double theta = 4;
+  // curvature on the x-y planning
+  optional double kappa = 5;
+  // accumulated distance from beginning of the path
+  optional double s = 6;
+
+  // derivative of kappa w.r.t s.
+  optional double dkappa = 7;
+  // derivative of derivative of kappa w.r.t s.
+  optional double ddkappa = 8;
+  // The lane ID where the path point is on
+  optional string lane_id = 9;
+
+  // derivative of x and y w.r.t parametric parameter t in CosThetareferenceline
+  optional double x_derivative = 10;
+  optional double y_derivative = 11;
+  }
+ * 
+ * **/
 class DiscretizedPath : public std::vector<common::PathPoint> {
  public:
   DiscretizedPath() = default;

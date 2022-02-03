@@ -28,6 +28,13 @@ bool NodeSRange::IsEnoughForChangeLane(double start_s, double end_s) {
 }
 
 bool NodeSRange::IsEnoughForChangeLane(double length) {
+  /**
+   * DEFINE_double(min_length_for_lane_change, 1.0,
+              "meters, which is 100 feet.  Minimum distance needs to travel on "
+              "a lane before making a lane change. Recommended by "
+              "https://www.oregonlaws.org/ors/811.375");
+   * 
+   * **/
   return (length > FLAGS_min_length_for_lane_change);
 }
 

@@ -90,6 +90,12 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
 
   planner_dispatcher_->Init();
 
+  /**
+   * DEFINE_string(traffic_rule_config_filename,
+   *           "/apollo/modules/planning/conf/traffic_rule_config.pb.txt",
+   *           "Traffic rule config filename");
+   *
+   * **/
   ACHECK(apollo::cyber::common::GetProtoFromFile(
       FLAGS_traffic_rule_config_filename, &traffic_rule_configs_))
       << "Failed to load traffic rule config file "
@@ -112,6 +118,7 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
   ACHECK(hdmap_) << "Failed to load map";
 
   // instantiate reference line provider
+
   reference_line_provider_ = std::make_unique<ReferenceLineProvider>(
       injector_->vehicle_state(), hdmap_);
 
@@ -127,7 +134,7 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
    *   }
    * }
    *
-   * planner_会指向PublicRoadPlanner
+   * planner_默认会指向PublicRoadPlanner
    * **/
   planner_ = planner_dispatcher_->DispatchPlanner(config_, injector_);
   if (!planner_) {
@@ -155,6 +162,7 @@ Status OnLanePlanning::Init(const PlanningConfig& config) {
 Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
                                  const TrajectoryPoint& planning_start_point,
                                  const VehicleState& vehicle_state) {
+  // 步骤1：构造Frame对象
   frame_.reset(new Frame(sequence_num, local_view_, planning_start_point,
                          vehicle_state, reference_line_provider_.get()));
 
@@ -165,6 +173,7 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
   std::list<ReferenceLine> reference_lines;
   std::list<hdmap::RouteSegments> segments;
 
+  // 步骤2：获取ReferenceLine
   if (!reference_line_provider_->GetReferenceLines(&reference_lines,
                                                    &segments)) {
     const std::string msg = "Failed to create reference line";
@@ -174,10 +183,19 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
 
   DCHECK_EQ(reference_lines.size(), segments.size());
 
+  // 步骤3：计算前向距离 视车速而定 180或250
   auto forward_limit =
       hdmap::PncMap::LookForwardDistance(vehicle_state.linear_velocity());
 
   for (auto& ref_line : reference_lines) {
+    /**
+     * DEFINE_double(
+     *   look_backward_distance, 50,
+     *  "look backward this distance when creating reference line from
+     * routing");
+     * **/
+
+    // 调整reference_points_和map_path_长度
     if (!ref_line.Segment(Vec2d(vehicle_state.x(), vehicle_state.y()),
                           FLAGS_look_backward_distance, forward_limit)) {
       const std::string msg = "Fail to shrink reference line.";
@@ -185,8 +203,15 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
       return Status(ErrorCode::PLANNING_ERROR, msg);
     }
   }
-  
+
   for (auto& seg : segments) {
+    /**
+     * DEFINE_double(
+     *   look_backward_distance, 50,
+     *  "look backward this distance when creating reference line from
+     * routing");
+     * **/
+    // 筛选掉segments中不在范围内的LaneSegment
     if (!seg.Shrink(Vec2d(vehicle_state.x(), vehicle_state.y()),
                     FLAGS_look_backward_distance, forward_limit)) {
       const std::string msg = "Fail to shrink routing segments.";
@@ -195,9 +220,11 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
     }
   }
 
+  // 初始化Frame
   auto status = frame_->Init(
       injector_->vehicle_state(), reference_lines, segments,
       reference_line_provider_->FutureRouteWaypoints(), injector_->ego_info());
+
   if (!status.ok()) {
     AERROR << "failed to init frame:" << status.ToString();
     return status;
@@ -233,7 +260,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   // when rerouting, reference line might not be updated. In this case, planning
   // module maintains not-ready until be restarted.
   static bool failed_to_update_reference_line = false;
-  local_view_ = local_view; 
+  local_view_ = local_view;
   const double start_timestamp = Clock::NowInSeconds();
   const double start_system_timestamp =
       std::chrono::duration<double>(
@@ -247,6 +274,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   // chassis
   ADEBUG << "Get chassis:" << local_view_.chassis->DebugString();
 
+  // 步骤1：根新车辆状态,包括位姿,速度等
   Status status = injector_->vehicle_state()->Update(
       *local_view_.localization_estimate, *local_view_.chassis);
 
@@ -277,6 +305,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
       << "start_timestamp is behind vehicle_state_timestamp by "
       << start_timestamp - vehicle_state_timestamp << " secs";
 
+  // 步骤2： 判断车辆状态是否有效
   if (!status.ok() || !util::IsVehicleStateValid(vehicle_state)) {
     const std::string msg =
         "Update VehicleStateProvider failed "
@@ -300,12 +329,20 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
    * DEFINE_double(message_latency_threshold, 0.02,
    *  "Threshold for message delay");
    * **/
+
+  // 步骤3：
+  // 如果当前时间与车辆状态时间戳比较接近(<0.02),则更新当前车辆状态(主要是位置)
   if (start_timestamp - vehicle_state_timestamp <
       FLAGS_message_latency_threshold) {
     vehicle_state = AlignTimeStamp(vehicle_state, start_timestamp);
   }
 
+  // 步骤4： 判断当前收到的routing是否和上一次相同
   if (util::IsDifferentRouting(last_routing_, *local_view_.routing)) {
+    /**
+     * 如果是不同的routing，则清空injector_历史
+     * 根据新的routing，更新eference_line_provider_
+     * **/
     last_routing_ = *local_view_.routing;
     ADEBUG << "last_routing_:" << last_routing_.ShortDebugString();
     injector_->history()->Clear();
@@ -314,6 +351,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     planner_->Init(config_);
   }
 
+  // 步骤5： 判断reference_line是否更新
   failed_to_update_reference_line =
       (!reference_line_provider_->UpdatedReferenceLine());
 
@@ -333,6 +371,11 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   }
 
   // Update reference line provider and reset pull over if necessary
+  // 步骤6：更新reference_line_provider_的 vehicle_state_成员变量
+  /**
+   * reference_line_provider_会根据vehicle_state调整reference_line
+   * 在ReferenceLineProvider::CreateReferenceLine中体现
+   * **/
   reference_line_provider_->UpdateVehicleState(vehicle_state);
 
   // planning is triggered by prediction data, but we can still use an estimated
@@ -341,17 +384,19 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
    * DEFINE_int32(planning_loop_rate, 10, "Loop rate for planning node");
    *
    * **/
+  // 步骤7：计planning周期,默认0.1秒
   const double planning_cycle_time =
       1.0 / static_cast<double>(FLAGS_planning_loop_rate);
 
   std::string replan_reason;
 
   /**
-   * 
+   *
    * DEFINE_uint64(trajectory_stitching_preserved_length, 20,
    *           "preserved points number in trajectory stitching");
-   * 
+   *
    * **/
+  // 步骤8：拼接trajectory
   std::vector<TrajectoryPoint> stitching_trajectory =
       TrajectoryStitcher::ComputeStitchingTrajectory(
           vehicle_state, start_timestamp, planning_cycle_time,
@@ -361,10 +406,12 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
   /**
    * 计算车辆的包围框
    * **/
+  // 步骤9：根新ego车辆包围框
   injector_->ego_info()->Update(stitching_trajectory.back(), vehicle_state);
 
   const uint32_t frame_num = static_cast<uint32_t>(seq_num_++);
 
+  // 步骤10： 核心代码，初始化Frame
   status = InitFrame(frame_num, stitching_trajectory.back(), vehicle_state);
 
   if (status.ok()) {
@@ -562,7 +609,7 @@ void OnLanePlanning::ExportReferenceLineDebug(planning_internal::Debug* debug) {
 Status OnLanePlanning::Plan(
     const double current_time_stamp,
     const std::vector<TrajectoryPoint>& stitching_trajectory,
-    ADCTrajectory* const ptr_trajectory_pb) 
+    ADCTrajectory* const ptr_trajectory_pb) {
   auto* ptr_debug = ptr_trajectory_pb->mutable_debug();
 
   /**

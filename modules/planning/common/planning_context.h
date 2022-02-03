@@ -41,6 +41,7 @@ class PlanningContext {
    * please put all status info inside PlanningStatus for easy maintenance.
    * do NOT create new struct at this level.
    * */
+
   const PlanningStatus& planning_status() const { return planning_status_; }
   PlanningStatus* mutable_planning_status() { return &planning_status_; }
 
@@ -48,6 +49,32 @@ class PlanningContext {
 
   /**
    * modules/planning/proto/planning_status.proto
+   * 
+   * message PlanningStatus {
+   * optional BareIntersectionStatus bare_intersection = 1;
+   * optional ChangeLaneStatus change_lane = 2;
+   * optional CreepDeciderStatus creep_decider = 3;
+   * optional CrosswalkStatus crosswalk = 4;
+   * optional DestinationStatus destination = 5;
+   * optional EmergencyStopStatus emergency_stop = 6;
+   * optional OpenSpaceStatus open_space = 7;
+   * optional ParkAndGoStatus park_and_go = 8;
+   * optional PathDeciderStatus path_decider = 9;
+   * optional PullOverStatus pull_over = 10;
+   * optional ReroutingStatus rerouting = 11;
+   * optional ScenarioStatus scenario = 12;
+   * optional SpeedDeciderStatus speed_decider = 13;
+   * optional StopSignStatus stop_sign = 14;
+   * optional TrafficLightStatus traffic_light = 15;
+   * optional YieldSignStatus yield_sign = 16;
+   * }
+   * 
+   * 
+   * message ReroutingStatus {
+   * optional double last_rerouting_time = 1;
+   * optional bool need_rerouting = 2 [default = false];
+   * optional apollo.routing.RoutingRequest routing_request = 3;
+   * }
    * **/
   PlanningStatus planning_status_;
 };

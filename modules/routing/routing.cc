@@ -35,7 +35,6 @@ Routing::Routing()
     : monitor_logger_buffer_(common::monitor::MonitorMessageItem::ROUTING) {}
 
 apollo::common::Status Routing::Init() {
-
   /**
    * 默认情况下：
    * routing_map_file=modules/map/data/demo/routing_map.txt
@@ -44,6 +43,14 @@ apollo::common::Status Routing::Init() {
   AINFO << "Use routing topology graph path: " << routing_map_file;
   navigator_ptr_.reset(new Navigator(routing_map_file));
 
+  /**
+   * 默认情况下：
+   * 使用odules/map/data/demo/routing_map.txt填充Map map_;(HDMapImpl成员变量)
+   * 
+   * 用来查找routing request请求的点距离最近的lane，
+   * 并且返回对应的lane id，这里很好理解，比如你在小区里面，需要打车，
+   * 需要找到最近的乘车点，说直白点，就是找到最近的路。
+   * **/
   hdmap_ = apollo::hdmap::HDMapUtil::BaseMapPtr();
   ACHECK(hdmap_) << "Failed to load map file:" << apollo::hdmap::BaseMapFile();
 
@@ -79,12 +86,15 @@ std::vector<RoutingRequest> Routing::FillLaneInfoIfMissing(
         common::util::PointFactory::ToPointENU(lane_waypoint.pose());
     std::vector<std::shared_ptr<const hdmap::LaneInfo>> lanes;
     // look for lanes with bigger radius if not found
-
     /**
-     * 查找一定范围内的lanes
+     * 防止选择的点距离车道线较远,无法匹配，增加6米范围的冗余
+     * 寻找在这个范围内的车道线信息
      * **/
     constexpr double kRadius = 0.3;
     for (int i = 0; i < 20; ++i) {
+      /**
+       * 通过已建立好的kdtree，快速搜索到满足条件的车道线信息
+       * **/
       hdmap_->GetLanes(point, kRadius + i * kRadius, &lanes);
       if (lanes.size() > 0) {
         break;
@@ -97,10 +107,16 @@ std::vector<RoutingRequest> Routing::FillLaneInfoIfMissing(
       return fixed_requests;  // return empty vector
     }
 
+    /**
+     * 搜索过程中，存在因车道重叠而增加的lane信息，
+     * 将该部分车道信息也增加如修正后的请求信息（fixed_requests）中，
+     * 到此完成输入请求点信息的修正，用于后续进行路径搜索
+     * **/
     for (size_t j = 0; j < lanes.size(); ++j) {
       double s = 0.0;
       double l = 0.0;
       lanes[j]->GetProjection({point.x(), point.y()}, &s, &l);
+
       if (j == 0) {
         auto waypoint_info = fixed_request.mutable_waypoint(i);
         waypoint_info->set_id(lanes[j]->id().id());
@@ -112,6 +128,7 @@ std::vector<RoutingRequest> Routing::FillLaneInfoIfMissing(
         new_lane_waypoint.set_s(s);
         additional_lane_waypoint_map[i].push_back(new_lane_waypoint);
       }
+
     }
   }
 
@@ -120,7 +137,8 @@ std::vector<RoutingRequest> Routing::FillLaneInfoIfMissing(
   fixed_requests.push_back(fixed_request);
 
   // additional routing_requests because of lane overlaps
-  for (const auto& m : additional_lane_waypoint_map) {
+  // 排列组合
+  for (const auto& m : additional_lane_waypoint_map) { 
     size_t cur_size = fixed_requests.size();
     for (size_t i = 0; i < cur_size; ++i) {
       // use index to iterate while keeping push_back
@@ -187,7 +205,8 @@ bool Routing::Process(const std::shared_ptr<RoutingRequest>& routing_request,
   AINFO << "Get new routing request:" << routing_request->DebugString();
 
   /**
-   * 找到routing_request节点最近的路
+   * 补充RoutingRequest信息，实际上是根据RoutingResponse中的waypoint，找到与其对应的lane
+   * 做排列组合生成更多的RoutingResponse
    * **/
   const auto& fixed_requests = FillLaneInfoIfMissing(*routing_request);
 

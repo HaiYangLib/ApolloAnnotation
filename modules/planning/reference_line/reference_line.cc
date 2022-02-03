@@ -156,6 +156,7 @@ bool ReferenceLine::Segment(const common::math::Vec2d& point,
   return Segment(sl.s(), look_backward, look_forward);
 }
 
+// 调整reference_points_和map_path_长度
 bool ReferenceLine::Segment(const double s, const double look_backward,
                             const double look_forward) {
   const auto& accumulated_s = map_path_.accumulated_s();

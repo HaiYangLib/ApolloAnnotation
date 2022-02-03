@@ -115,6 +115,7 @@ int HDMapImpl::LoadMapFromProto(const Map& map_proto) {
   for (const auto& rsu : map_.rsu()) {
     rsu_table_[rsu.id().id()].reset(new RSUInfo(rsu));
   }
+  
   for (const auto& road_ptr_pair : road_table_) {
     const auto& road_id = road_ptr_pair.second->id();
     for (const auto& road_section : road_ptr_pair.second->sections()) {

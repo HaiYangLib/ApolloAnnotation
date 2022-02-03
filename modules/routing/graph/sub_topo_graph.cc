@@ -61,6 +61,10 @@ void MergeBlockRange(const TopoNode* topo_node,
   }
 }
 
+/**
+ * 初始状态 origin_range中的成员 start_s和end_s相等: lane [start_s,end_s]
+ * 经过转换后： lane [0,start_s], [start,end_s],[end_s,length]
+ * **/
 void GetSortedValidRange(const TopoNode* topo_node,
                          const std::vector<NodeSRange>& origin_range,
                          std::vector<NodeSRange>* valid_range) {
@@ -69,6 +73,7 @@ void GetSortedValidRange(const TopoNode* topo_node,
   double start_s = topo_node->StartS();
   double end_s = topo_node->EndS();
   std::vector<double> all_value;
+  // 添加node起点，边界和node终点
   all_value.push_back(start_s);
   for (const auto& range : block_range) {
     all_value.push_back(range.StartS());
@@ -91,6 +96,11 @@ bool IsReachable(const TopoNode* from_node, const TopoNode* to_node) {
 
 }  // namespace
 
+/**
+ * 在全局地图中，有一些车道有一段路不能走，或者有些点不能走，一般的考虑方式是把这些点和线段删掉，
+ * 重新规划全局规划，也可以按照apollo的方式把这段路切开，分成几个subline，突然遇到不能走的地方，
+ * 在这一段按照subline重新规划这一条段，一般都是在黑名单一定区域内重新导航，这样就不用全局重新规划了
+ * **/
 SubTopoGraph::SubTopoGraph(
     const std::unordered_map<const TopoNode*, std::vector<NodeSRange> >&
         black_map) {
@@ -98,10 +108,12 @@ SubTopoGraph::SubTopoGraph(
   for (const auto& map_iter : black_map) {
     valid_range.clear();
     GetSortedValidRange(map_iter.first, map_iter.second, &valid_range);
+    // 生成子节点
     InitSubNodeByValidRange(map_iter.first, valid_range);
   }
 
   for (const auto& map_iter : black_map) {
+    // 生成子边
     InitSubEdge(map_iter.first);
   }
 
@@ -167,6 +179,7 @@ const TopoNode* SubTopoGraph::GetSubNodeWithS(const TopoNode* topo_node,
   return sorted_vec[index].GetTopoNode();
 }
 
+// valid_range的成员lane: [0,start_s], [start,end_s],[end_s,length]
 void SubTopoGraph::InitSubNodeByValidRange(
     const TopoNode* topo_node, const std::vector<NodeSRange>& valid_range) {
   // Attention: no matter topo node has valid_range or not,
@@ -176,20 +189,26 @@ void SubTopoGraph::InitSubNodeByValidRange(
 
   std::vector<TopoNode*> sub_node_sorted_vec;
   for (const auto& range : valid_range) {
+    // MIN_INTERNAL_FOR_NODE=0.01, 长度较小的会被忽略掉
     if (range.Length() < MIN_INTERNAL_FOR_NODE) {
       continue;
     }
+
     std::shared_ptr<TopoNode> sub_topo_node_ptr;
     sub_topo_node_ptr.reset(new TopoNode(topo_node, range));
+
     sub_node_vec.emplace_back(sub_topo_node_ptr.get(), range);
     sub_node_set.insert(sub_topo_node_ptr.get());
+
     sub_node_sorted_vec.push_back(sub_topo_node_ptr.get());
+
     topo_nodes_.push_back(std::move(sub_topo_node_ptr));
   }
 
   for (size_t i = 1; i < sub_node_sorted_vec.size(); ++i) {
     auto* pre_node = sub_node_sorted_vec[i - 1];
     auto* next_node = sub_node_sorted_vec[i];
+    // std::fabs(s1 - s2) < 0.1e-6
     if (IsCloseEnough(pre_node->EndS(), next_node->StartS())) {
       Edge edge;
       edge.set_from_lane_id(topo_node->LaneId());
@@ -271,6 +290,9 @@ void SubTopoGraph::InitOutSubNodeSubEdge(
   }
 }
 
+/**
+ * 得到node的所有子节点
+ * **/
 bool SubTopoGraph::GetSubNodes(
     const TopoNode* node,
     std::unordered_set<TopoNode*>* const sub_nodes) const {

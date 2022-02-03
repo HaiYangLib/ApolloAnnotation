@@ -106,6 +106,11 @@ Status LatticePlanner::Plan(const TrajectoryPoint& planning_start_point,
   size_t index = 0;
   for (auto& reference_line_info : *frame->mutable_reference_line_info()) {
     if (index != 0) {
+
+      /**
+       * DEFINE_double(cost_non_priority_reference_line, 5.0,
+       *       "The cost of planning on non-priority reference line.");
+       * **/
       reference_line_info.SetPriorityCost(
           FLAGS_cost_non_priority_reference_line);
     } else {

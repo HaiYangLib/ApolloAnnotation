@@ -29,12 +29,14 @@ void merge_block_range(const TopoNode* topo_node,
                        const std::vector<NodeSRange>& origin_range,
                        std::vector<NodeSRange>* block_range) {
   std::vector<NodeSRange> sorted_origin_range(origin_range);
+  // 根据start_s排序
   std::sort(sorted_origin_range.begin(), sorted_origin_range.end());
   size_t cur_index = 0;
   auto total_size = sorted_origin_range.size();
   while (cur_index < total_size) {
     NodeSRange range(sorted_origin_range[cur_index]);
     ++cur_index;
+    // 拓展重叠部分
     while (cur_index < total_size &&
            range.MergeRangeOverlap(sorted_origin_range[cur_index])) {
       ++cur_index;

@@ -33,6 +33,10 @@ PlanningBase::PlanningBase(const std::shared_ptr<DependencyInjector>& injector)
 
 PlanningBase::~PlanningBase() {}
 
+/**
+ * config：
+ * modules/planning/conf/planning_config.pb.txt
+ * **/
 Status PlanningBase::Init(const PlanningConfig& config) {
   injector_->planning_context()->Init();
   TaskFactory::Init(config, injector_);

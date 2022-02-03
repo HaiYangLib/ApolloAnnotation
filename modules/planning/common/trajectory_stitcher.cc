@@ -15,11 +15,10 @@
  *****************************************************************************/
 
 /******************************************************************************
-* AnnotationAuthor  : HaiYang
-* Email   : hanhy20@mails.jlu.edu.cn
-* Desc    : annotation for apollo
-******************************************************************************/
-
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
 
 /**
  * @file
@@ -30,7 +29,6 @@
 #include <algorithm>
 
 #include "absl/strings/str_cat.h"
-
 #include "cyber/common/log.h"
 #include "modules/common/configs/config_gflags.h"
 #include "modules/common/math/angle.h"
@@ -123,27 +121,36 @@ void TrajectoryStitcher::TransformLastPublishedTrajectory(
    (or) 2. we don't have the trajectory from last planning cycle
    (or) 3. the position deviation from actual and target is too high
 */
+
+/**
+ * 车辆需要重规划的情况：
+ * 1.根据配置文件设置，当FLAGS_enable_trajectory_stitcher为false时
+ * 2.无原始轨迹时
+ * 3.人工驾驶模式时
+ * 4.上一周期轨迹点个数为0
+ * 5.上一周期轨迹点中的时间头与当前时间不吻合（
+ *    分为两种情况：1，当前时间小于上一周期的轨迹时间，2，按照时间差得到的轨迹点的索引值大于轨迹点的个数）
+ * 6.按照时间差所得到的轨迹索引值对应的轨迹点无轨迹点值，即轨迹点缺失
+ * 7.计算车辆当前位置点和根据时间获取的轨迹点的横纵向坐标差，当横纵向差值较大时，需要进行重规划
+ * **/
 std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     const VehicleState& vehicle_state, const double current_timestamp,
     const double planning_cycle_time, const size_t preserved_points_num,
     const bool replan_by_offset, const PublishableTrajectory* prev_trajectory,
     std::string* replan_reason) {
-
   /**
-   * DEFINE_bool(enable_trajectory_stitcher, true, 
+   * DEFINE_bool(enable_trajectory_stitcher, true,
    *    "enable stitching trajectory");
-   * **/    
+   * **/
   if (!FLAGS_enable_trajectory_stitcher) {
     *replan_reason = "stitch is disabled by gflag.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
 
-  
   if (!prev_trajectory) {
     *replan_reason = "replan for no previous trajectory.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
-
 
   if (vehicle_state.driving_mode() != canbus::Chassis::COMPLETE_AUTO_DRIVE) {
     *replan_reason = "replan for manual mode.";

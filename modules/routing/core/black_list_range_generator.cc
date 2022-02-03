@@ -14,6 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
+
 #include "modules/routing/core/black_list_range_generator.h"
 
 namespace apollo {
@@ -28,6 +35,8 @@ double MoveSForward(double s, double upper_bound) {
     AERROR << "Illegal s: " << s << ", upper bound: " << upper_bound;
     return s;
   }
+
+  // S_GAP_FOR_BLACK = 0.01;
   if (s + S_GAP_FOR_BLACK < upper_bound) {
     return (s + S_GAP_FOR_BLACK);
   } else {
@@ -40,6 +49,8 @@ double MoveSBackward(double s, double lower_bound) {
     AERROR << "Illegal s: " << s << ", lower bound: " << lower_bound;
     return s;
   }
+
+  // S_GAP_FOR_BLACK = 0.01;
   if (s - S_GAP_FOR_BLACK > lower_bound) {
     return (s - S_GAP_FOR_BLACK);
   } else {
@@ -92,6 +103,7 @@ void AddBlackMapFromLane(const RoutingRequest& request, const TopoGraph* graph,
   }
 }
 
+// cut_ratio=start_cut_s / start_length
 void AddBlackMapFromOutParallel(const TopoNode* node, double cut_ratio,
                                 TopoRangeManager* const range_manager) {
   std::unordered_set<const TopoNode*> par_node_set;
@@ -103,6 +115,7 @@ void AddBlackMapFromOutParallel(const TopoNode* node, double cut_ratio,
   }
 }
 
+// cut_ratio=end_cut_s / end_length
 void AddBlackMapFromInParallel(const TopoNode* node, double cut_ratio,
                                TopoRangeManager* const range_manager) {
   std::unordered_set<const TopoNode*> par_node_set;
@@ -116,6 +129,7 @@ void AddBlackMapFromInParallel(const TopoNode* node, double cut_ratio,
 
 }  // namespace
 
+// 通过request请求传入黑名单lane和road，每次直接屏蔽一整条road或者lane
 void BlackListRangeGenerator::GenerateBlackMapFromRequest(
     const RoutingRequest& request, const TopoGraph* graph,
     TopoRangeManager* const range_manager) const {
@@ -124,6 +138,11 @@ void BlackListRangeGenerator::GenerateBlackMapFromRequest(
   range_manager->SortAndMerge();
 }
 
+/**
+ * 虽然range_manager支持传入range，但是这种场景只是针对routing_request传入的点对lane做切割，
+ * 方便计算，每次切割的区间的起点和终点重合，是一个特殊场景，后续应该有用到比如在一条lane里，
+ * 有某一段不能行驶的功能
+ * **/
 void BlackListRangeGenerator::AddBlackMapFromTerminal(
     const TopoNode* src_node, const TopoNode* dest_node, double start_s,
     double end_s, TopoRangeManager* const range_manager) const {
@@ -132,29 +151,37 @@ void BlackListRangeGenerator::AddBlackMapFromTerminal(
 
   static constexpr double kEpsilon = 1e-2;
   const double start_s_adjusted =
-      (start_s > start_length && start_s - start_length <= kEpsilon) ?
-          start_length : start_s;
+      (start_s > start_length && start_s - start_length <= kEpsilon)
+          ? start_length
+          : start_s;
   const double end_s_adjusted =
-      (end_s > end_length && end_s - end_length <= kEpsilon) ?
-          end_length : end_s;
+      (end_s > end_length && end_s - end_length <= kEpsilon) ? end_length
+                                                             : end_s;
 
   if (start_s_adjusted < 0.0 || start_s_adjusted > start_length) {
     AERROR << "Illegal start_s: " << start_s << ", length: " << start_length;
     return;
   }
+
   if (end_s_adjusted < 0.0 || end_s_adjusted > end_length) {
     AERROR << "Illegal end_s: " << end_s << ", length: " << end_length;
     return;
   }
 
   double start_cut_s = MoveSBackward(start_s_adjusted, 0.0);
+
+  // 注意这里range的起点和终点是同一个点，为routing的起点
   range_manager->Add(src_node, start_cut_s, start_cut_s);
+  // 把平行的节点也按照比例做相同的切分
   AddBlackMapFromOutParallel(src_node, start_cut_s / start_length,
                              range_manager);
 
   double end_cut_s = MoveSForward(end_s_adjusted, end_length);
+  // 注意这里range的起点和终点是同一个点，为routing的终点
   range_manager->Add(dest_node, end_cut_s, end_cut_s);
+
   AddBlackMapFromInParallel(dest_node, end_cut_s / end_length, range_manager);
+  // 排序并且合并
   range_manager->SortAndMerge();
 }
 
