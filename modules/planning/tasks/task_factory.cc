@@ -70,7 +70,7 @@ std::unordered_map<TaskConfig::TaskType, TaskConfig, std::hash<int>>
  * modules/planning/conf/planning_config.pb.txt
  * **/
 void TaskFactory::Init(const PlanningConfig& config,
-                       const std::shared_ptr<DependencyInjector>& injector) {
+                       const std::shared_ptr<DependencyInjector>& injector) { 
   ///////////////////////////
   // deciders
   task_factory_.Register(

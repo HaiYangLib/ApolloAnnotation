@@ -60,12 +60,14 @@ void ValetParkingScenario::RegisterStages() {
   if (s_stage_factory_.Empty()) {
     s_stage_factory_.Clear();
   }
+
   s_stage_factory_.Register(
       ScenarioConfig::VALET_PARKING_APPROACHING_PARKING_SPOT,
       [](const ScenarioConfig::StageConfig& config,
          const std::shared_ptr<DependencyInjector>& injector) -> Stage* {
         return new StageApproachingParkingSpot(config, injector);
       });
+      
   s_stage_factory_.Register(
       ScenarioConfig::VALET_PARKING_PARKING,
       [](const ScenarioConfig::StageConfig& config,

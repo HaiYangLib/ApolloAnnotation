@@ -45,20 +45,6 @@ bool Scenario::LoadConfig(const std::string& config_file,
   enabled: true
   task_type: LANE_CHANGE_DECIDER
   task_type: PATH_REUSE_DECIDER
-  task_type: PATH_LANE_BORROW_DECIDER
-  task_type: PATH_BOUNDS_DECIDER
-  task_type: PIECEWISE_JERK_PATH_OPTIMIZER
-  task_type: PATH_ASSESSMENT_DECIDER
-  task_type: PATH_DECIDER
-  task_type: RULE_BASED_STOP_DECIDER
-  task_type: ST_BOUNDS_DECIDER
-  task_type: SPEED_BOUNDS_PRIORI_DECIDER
-  task_type: SPEED_HEURISTIC_OPTIMIZER
-  task_type: SPEED_DECIDER
-  task_type: SPEED_BOUNDS_FINAL_DECIDER
-  # task_type: PIECEWISE_JERK_SPEED_OPTIMIZER
-  task_type: PIECEWISE_JERK_NONLINEAR_SPEED_OPTIMIZER
-  task_type: RSS_DECIDER
 
   task_config: {
     task_type: LANE_CHANGE_DECIDER
@@ -96,6 +82,7 @@ void Scenario::Init() {
         << "stage type : " << ScenarioConfig::StageType_Name(stage_type)
         << " has no config";
   }
+
   ADEBUG << "init stage "
          << ScenarioConfig::StageType_Name(config_.stage_type(0));
   current_stage_ =

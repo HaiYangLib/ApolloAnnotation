@@ -78,9 +78,9 @@ class Trajectory1dGenerator {
       std::vector<std::shared_ptr<Curve1d>>* ptr_trajectory_bundle) const;
 
  private:
-  std::array<double, 3> init_lon_state_;
+  std::array<double, 3> init_lon_state_; //s,ds,dds
 
-  std::array<double, 3> init_lat_state_;
+  std::array<double, 3> init_lat_state_; //l,dl.ddl
 
   EndConditionSampler end_condition_sampler_;
 
@@ -99,6 +99,7 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<4>(
                                  end_conditions.size());
 
   for (const auto& end_condition : end_conditions) {
+  
     auto ptr_trajectory1d = std::make_shared<LatticeTrajectory1d>(
         std::shared_ptr<Curve1d>(new QuarticPolynomialCurve1d(
             init_state, {end_condition.first[1], end_condition.first[2]},

@@ -114,11 +114,11 @@ ReferenceLineProvider::ReferenceLineProvider(
                                          &smoother_config_))
       << "Failed to load smoother config file "
       << FLAGS_smoother_config_filename;
-  if (smoother_config_.has_qp_spline()) {
+  if (smoother_config_.has_qp_spline()) {  //样条曲线
     smoother_.reset(new QpSplineReferenceLineSmoother(smoother_config_));
-  } else if (smoother_config_.has_spiral()) {
+  } else if (smoother_config_.has_spiral()) {  //螺旋线
     smoother_.reset(new SpiralReferenceLineSmoother(smoother_config_));
-  } else if (smoother_config_.has_discrete_points()) {
+  } else if (smoother_config_.has_discrete_points()) {  //离散点
     smoother_.reset(new DiscretePointsReferenceLineSmoother(smoother_config_));
   } else {
     ACHECK(false) << "unknown smoother config "
@@ -135,8 +135,15 @@ bool ReferenceLineProvider::UpdateRoutingResponse(
   return true;
 }
 
+/**
+ * 从当前车辆的索引开始，向后查找最近的查询点waypoint
+ * **/
 std::vector<routing::LaneWaypoint>
 ReferenceLineProvider::FutureRouteWaypoints() {
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+   *         "Use relative position in navigation mode");
+   * **/
   if (!FLAGS_use_navigation_mode) {
     std::lock_guard<std::mutex> lock(pnc_map_mutex_);
     return pnc_map_->FutureRouteWaypoints();
@@ -859,6 +866,11 @@ bool ReferenceLineProvider::IsReferenceLineSmoothValid(
     }
 
     const double diff = std::fabs(sl_new.l());
+    /**
+     *  DEFINE_double(smoothed_reference_line_max_diff, 5.0,
+     *         "Maximum position difference between the smoothed and the raw "
+     *         "reference lines.");
+     * **/
     if (diff > FLAGS_smoothed_reference_line_max_diff) {
       AERROR << "Fail to provide reference line because too large diff "
                 "between smoothed and raw reference lines. diff: "
@@ -869,6 +881,17 @@ bool ReferenceLineProvider::IsReferenceLineSmoothValid(
   return true;
 }
 
+/**
+ * struct AnchorPoint {
+ *  common::PathPoint path_point;
+ *  double lateral_bound = 0.0;
+ *  double longitudinal_bound = 0.0;
+ *  bool enforced = false;
+ * };
+ *
+ * path_point：s处对应的参考点
+ * lateral_bound和longitudinal_bound锚点的横纵向边界,由配置文件得到
+ * **/
 AnchorPoint ReferenceLineProvider::GetAnchorPoint(
     const ReferenceLine &reference_line, double s) const {
   AnchorPoint anchor;
@@ -877,6 +900,7 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
   auto ref_point = reference_line.GetReferencePoint(s);
   if (ref_point.lane_waypoints().empty()) {
     anchor.path_point = ref_point.ToPathPoint(s);
+    //  max_lateral_boundary_bound : 0.5
     anchor.lateral_bound = smoother_config_.max_lateral_boundary_bound();
     return anchor;
   }
@@ -885,6 +909,7 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
       VehicleConfigHelper::GetConfig().vehicle_param().width();
   const Vec2d left_vec =
       Vec2d::CreateUnitVec2d(ref_point.heading() + M_PI / 2.0);
+
   auto waypoint = ref_point.lane_waypoints().front();
   double left_width = 0.0;
   double right_width = 0.0;
@@ -906,6 +931,7 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
 
   double center_shift = 0.0;
   if (hdmap::RightBoundaryType(waypoint) == hdmap::LaneBoundaryType::CURB) {
+    //  curb_shift : 0.2
     safe_lane_width -= smoother_config_.curb_shift();
     if (safe_lane_width < kEpislon) {
       ADEBUG << "lane width smaller than adc width and right curb shift";
@@ -915,7 +941,9 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
       center_shift += 0.5 * smoother_config_.curb_shift();
     }
   }
+
   if (hdmap::LeftBoundaryType(waypoint) == hdmap::LaneBoundaryType::CURB) {
+    //  curb_shift : 0.2
     safe_lane_width -= smoother_config_.curb_shift();
     if (safe_lane_width < kEpislon) {
       ADEBUG << "lane width smaller than adc width and left curb shift";
@@ -927,6 +955,7 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
   }
 
   //  apply buffer if possible
+  // lateral_buffer : 0.2
   const double buffered_width =
       safe_lane_width - 2.0 * smoother_config_.lateral_buffer();
   safe_lane_width =
@@ -939,6 +968,8 @@ AnchorPoint ReferenceLineProvider::GetAnchorPoint(
 
   ref_point += left_vec * center_shift;
   anchor.path_point = ref_point.ToPathPoint(s);
+  // min_lateral_boundary_bound : 0.1
+  // max_lateral_boundary_bound : 0.5
   anchor.lateral_bound = common::math::Clamp(
       effective_width, smoother_config_.min_lateral_boundary_bound(),
       smoother_config_.max_lateral_boundary_bound());

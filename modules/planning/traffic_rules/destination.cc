@@ -77,9 +77,17 @@ int Destination::MakeDecisions(Frame* frame,
     return 0;
   }
 
+  /**
+   * DEFINE_string(destination_obstacle_id, "DEST",
+              "obstacle id for converting des
+   */
   const std::string stop_wall_id = FLAGS_destination_obstacle_id;
   const std::vector<std::string> wait_for_obstacle_ids;
 
+  /**
+    DEFINE_bool(enable_scenario_pull_over, false,
+            "enable pull-over scenario in planning");
+   */
   if (FLAGS_enable_scenario_pull_over) {
     const auto& pull_over_status =
         injector_->planning_context()->planning_status().pull_over();

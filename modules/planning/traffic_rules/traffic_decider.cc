@@ -111,10 +111,14 @@ bool TrafficDecider::Init(const TrafficRuleConfigs &config) {
   return true;
 }
 
+/**
+ * 确定停止点
+ * **/
 void TrafficDecider::BuildPlanningTarget(
     ReferenceLineInfo *reference_line_info) {
   double min_s = std::numeric_limits<double>::infinity();
   StopPoint stop_point;
+  // 虚拟障碍物即交通规则
   for (const auto *obstacle :
        reference_line_info->path_decision()->obstacles().Items()) {
     if (obstacle->IsVirtual() && obstacle->HasLongitudinalDecision() &&
@@ -146,12 +150,19 @@ void TrafficDecider::BuildPlanningTarget(
         common::VehicleConfigHelper::Instance()->GetConfig();
     double front_edge_to_center =
         vehicle_config.vehicle_param().front_edge_to_center();
+    /**
+     * DEFINE_double(virtual_stop_wall_length, 0.1,
+              "virtual stop wall length (meters)")
+     */
     stop_point.set_s(min_s - front_edge_to_center +
                      FLAGS_virtual_stop_wall_length / 2.0);
     reference_line_info->SetLatticeStopPoint(stop_point);
   }
 }
 
+/**
+ * TrafficDecider入口
+ * **/
 Status TrafficDecider::Execute(
     Frame *frame, ReferenceLineInfo *reference_line_info,
     const std::shared_ptr<DependencyInjector> &injector) {

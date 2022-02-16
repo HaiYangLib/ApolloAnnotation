@@ -92,8 +92,10 @@ void PathTimeGraph::SetupObstacles(
       continue;
     }
     if (!obstacle->HasTrajectory()) {
+      // 创建静态障碍物的ST图
       SetStaticObstacle(obstacle, discretized_ref_points);
     } else {
+      // 创建动态障碍物的ST图
       SetDynamicObstacle(obstacle, discretized_ref_points);
     }
   }
@@ -170,12 +172,18 @@ void PathTimeGraph::SetDynamicObstacle(
     SLBoundary sl_boundary =
         ComputeObstacleBoundary(box.GetAllCorners(), discretized_ref_points);
 
+    // FLAGS_default_reference_line_width：4
     double left_width = FLAGS_default_reference_line_width * 0.5;
     double right_width = FLAGS_default_reference_line_width * 0.5;
     ptr_reference_line_info_->reference_line().GetLaneWidth(
         sl_boundary.start_s(), &left_width, &right_width);
 
     // The obstacle is not shown on the region to be considered.
+    /**
+     * path_range_.second-path_range_.first=200米
+     * left_width=right_width=2米
+     * 只考虑参考线附近的障碍物
+     * **/
     if (sl_boundary.start_s() > path_range_.second ||
         sl_boundary.end_s() < path_range_.first ||
         sl_boundary.start_l() > left_width ||
@@ -184,10 +192,7 @@ void PathTimeGraph::SetDynamicObstacle(
           path_time_obstacle_map_.end()) {
         break;
       }
-      /**
-       * DEFINE_double(trajectory_time_resolution, 0.1,
-       *       "Trajectory time resolution in planning");
-       * **/
+      // FLAGS_trajectory_time_resolution:0.1
       relative_time += FLAGS_trajectory_time_resolution;
       continue;
     }
@@ -203,6 +208,7 @@ void PathTimeGraph::SetDynamicObstacle(
           SetPathTimePoint(obstacle->Id(), sl_boundary.end_s(), relative_time));
     }
 
+    // 边界延时间方向拓展
     path_time_obstacle_map_[obstacle->Id()].set_bottom_right_point(
         SetPathTimePoint(obstacle->Id(), sl_boundary.start_s(), relative_time));
     path_time_obstacle_map_[obstacle->Id()].set_upper_right_point(
@@ -295,13 +301,13 @@ std::vector<STPoint> PathTimeGraph::GetObstacleSurroundingPoints(
 
   double t0 = 0.0;
   double t1 = 0.0;
-  if (s_dist > 0.0) {
+  if (s_dist > 0.0) {//上界对应超车
     s0 = pt_obstacle.upper_left_point().s();
     s1 = pt_obstacle.upper_right_point().s();
 
     t0 = pt_obstacle.upper_left_point().t();
     t1 = pt_obstacle.upper_right_point().t();
-  } else {
+  } else {//下界对应跟随
     s0 = pt_obstacle.bottom_left_point().s();
     s1 = pt_obstacle.bottom_right_point().s();
 
@@ -351,16 +357,26 @@ std::vector<std::pair<double, double>> PathTimeGraph::GetLateralBounds(
 
   // Initialize bounds by reference line width
   for (size_t i = 0; i < num_bound; ++i) {
-    double left_width = FLAGS_default_reference_line_width / 2.0;
-    double right_width = FLAGS_default_reference_line_width / 2.0;
+    double left_width = FLAGS_default_reference_line_width / 2.0; // 2米
+    double right_width = FLAGS_default_reference_line_width / 2.0; // 2米
+
     ptr_reference_line_info_->reference_line().GetLaneWidth(s_curr, &left_width,
                                                             &right_width);
+
     double ego_d_lower = init_d_[0] - ego_width / 2.0;
     double ego_d_upper = init_d_[0] + ego_width / 2.0;
+
+    /**
+     * DEFINE_double(bound_buffer, 0.1, 
+     *  "buffer to boundary for lateral optimization");
+     * **/
+    // 加入一个最大的边界范围
     bounds.emplace_back(
         std::min(-right_width, ego_d_lower - FLAGS_bound_buffer),
         std::max(left_width, ego_d_upper + FLAGS_bound_buffer));
+
     discretized_path.push_back(s_curr);
+
     s_curr += s_resolution;
   }
 

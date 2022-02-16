@@ -106,6 +106,7 @@ Obstacle::Obstacle(const std::string& id,
   if (trajectory_points.size() > 0) {
     trajectory_points[0].mutable_path_point()->set_s(0.0);
   }
+
   for (int i = 1; i < trajectory_points.size(); ++i) {
     const auto& prev = trajectory_points[i - 1];
     const auto& cur = trajectory_points[i];
@@ -150,7 +151,7 @@ common::TrajectoryPoint Obstacle::GetPointAtTime(
     } else if (it_lower == points.end()) {
       return *points.rbegin();
     }
-    
+
     return common::math::InterpolateUsingLinearApproximation(
         *(it_lower - 1), *it_lower, relative_time);
   }
@@ -203,8 +204,10 @@ std::list<std::unique_ptr<Obstacle>> Obstacle::CreateObstacles(
              << prediction_obstacle.perception_obstacle().DebugString();
       continue;
     }
+
     const auto perception_id =
         std::to_string(prediction_obstacle.perception_obstacle().id());
+
     if (prediction_obstacle.trajectory().empty()) {
       obstacles.emplace_back(
           new Obstacle(perception_id, prediction_obstacle.perception_obstacle(),
@@ -225,6 +228,7 @@ std::list<std::unique_ptr<Obstacle>> Obstacle::CreateObstacles(
           break;
         }
       }
+
       if (!is_valid_trajectory) {
         continue;
       }
@@ -318,10 +322,11 @@ void Obstacle::BuildReferenceLineStBoundary(const ReferenceLine& reference_line,
   const auto& adc_param =
       VehicleConfigHelper::Instance()->GetConfig().vehicle_param();
   const double adc_width = adc_param.width();
-  if (is_static_ || trajectory_.trajectory_point().empty()) {
+  if (is_static_ || trajectory_.trajectory_point().empty()) {  // 静态障碍物
     std::vector<std::pair<STPoint, STPoint>> point_pairs;
     double start_s = sl_boundary_.start_s();
     double end_s = sl_boundary_.end_s();
+    // kStBoundaryDeltaS = 0.2
     if (end_s - start_s < kStBoundaryDeltaS) {
       end_s = start_s + kStBoundaryDeltaS;
     }
@@ -330,10 +335,11 @@ void Obstacle::BuildReferenceLineStBoundary(const ReferenceLine& reference_line,
     }
     point_pairs.emplace_back(STPoint(start_s - adc_start_s, 0.0),
                              STPoint(end_s - adc_start_s, 0.0));
+    // DEFINE_double(st_max_t, 8, "the maximum t of st boundary");
     point_pairs.emplace_back(STPoint(start_s - adc_start_s, FLAGS_st_max_t),
                              STPoint(end_s - adc_start_s, FLAGS_st_max_t));
     reference_line_st_boundary_ = STBoundary(point_pairs);
-  } else {
+  } else {  // 动态障碍物
     if (BuildTrajectoryStBoundary(reference_line, adc_start_s,
                                   &reference_line_st_boundary_)) {
       ADEBUG << "Found st_boundary for obstacle " << id_;
@@ -356,6 +362,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
            << perception_obstacle_.DebugString();
     return false;
   }
+
   const double object_width = perception_obstacle_.width();
   const double object_length = perception_obstacle_.length();
   const auto& trajectory_points = trajectory_.trajectory_point();
@@ -363,6 +370,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
     AWARN << "object " << id_ << " has no trajectory points";
     return false;
   }
+
   const auto& adc_param =
       VehicleConfigHelper::Instance()->GetConfig().vehicle_param();
   const double adc_length = adc_param.length();
@@ -439,30 +447,49 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
       continue;
     }
     static constexpr double kSparseMappingS = 20.0;
+    /**
+     * const double kStBoundaryDeltaS = 0.2;        // meters
+     * const double kStBoundarySparseDeltaS = 1.0;  // meters
+     * **/
     const double st_boundary_delta_s =
         (std::fabs(object_boundary.start_s() - adc_start_s) > kSparseMappingS)
             ? kStBoundarySparseDeltaS
             : kStBoundaryDeltaS;
+
     const double object_s_diff =
         object_boundary.end_s() - object_boundary.start_s();
     if (object_s_diff < st_boundary_delta_s) {
       continue;
     }
+
     const double delta_t =
         second_traj_point.relative_time() - first_traj_point.relative_time();
+
     double low_s = std::max(object_boundary.start_s() - adc_half_length, 0.0);
+
     bool has_low = false;
+
+    // DEFINE_double(st_max_s, 100, "the maximum s of st boundary");
     double high_s =
         std::min(object_boundary.end_s() + adc_half_length, FLAGS_st_max_s);
+        
     bool has_high = false;
+
     while (low_s + st_boundary_delta_s < high_s && !(has_low && has_high)) {
       if (!has_low) {
         auto low_ref = reference_line.GetReferencePoint(low_s);
+        /**
+         * DEFINE_double(nonstatic_obstacle_nudge_l_buffer, 0.4,
+              "minimum l-distance to nudge a non-static obstacle (meters)");
+         * ***/
+        // 判断是否重叠
         has_low = object_moving_box.HasOverlap(
             {low_ref, low_ref.heading(), adc_length,
              adc_width + FLAGS_nonstatic_obstacle_nudge_l_buffer});
+
         low_s += st_boundary_delta_s;
       }
+
       if (!has_high) {
         auto high_ref = reference_line.GetReferencePoint(high_s);
         has_high = object_moving_box.HasOverlap(
@@ -471,13 +498,16 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
         high_s -= st_boundary_delta_s;
       }
     }
+
     if (has_low && has_high) {
       low_s -= st_boundary_delta_s;
       high_s += st_boundary_delta_s;
+
       double low_t =
           (first_traj_point.relative_time() +
            std::fabs((low_s - object_boundary.start_s()) / object_s_diff) *
                delta_t);
+
       polygon_points.emplace_back(
           std::make_pair(STPoint{low_s - adc_start_s, low_t},
                          STPoint{high_s - adc_start_s, low_t}));
@@ -485,6 +515,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
           (first_traj_point.relative_time() +
            std::fabs((high_s - object_boundary.start_s()) / object_s_diff) *
                delta_t);
+
       if (high_t - low_t > 0.05) {
         polygon_points.emplace_back(
             std::make_pair(STPoint{low_s - adc_start_s, high_t},
@@ -492,6 +523,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
       }
     }
   }
+
   if (!polygon_points.empty()) {
     std::sort(polygon_points.begin(), polygon_points.end(),
               [](const std::pair<STPoint, STPoint>& a,
@@ -511,6 +543,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
   } else {
     return false;
   }
+
   return true;
 }
 
@@ -745,6 +778,7 @@ void Obstacle::CheckLaneBlocking(const ReferenceLine& reference_line) {
     return;
   }
 
+  // 计算余下的可行驶的车道宽度
   const double driving_width = reference_line.GetDrivingWidth(sl_boundary_);
   auto vehicle_param = common::VehicleConfigHelper::GetConfig().vehicle_param();
 

@@ -48,7 +48,7 @@ Trajectory1dGenerator::Trajectory1dGenerator(
     const State& lon_init_state, const State& lat_init_state,
     std::shared_ptr<PathTimeGraph> ptr_path_time_graph,
     std::shared_ptr<PredictionQuerier> ptr_prediction_querier)
-    : init_lon  _state_(lon_init_state),
+    : init_lon_state_(lon_init_state),
       init_lat_state_(lat_init_state),
       end_condition_sampler_(lon_init_state, lat_init_state,
                              ptr_path_time_graph, ptr_prediction_querier),
@@ -58,9 +58,10 @@ void Trajectory1dGenerator::GenerateTrajectoryBundles(
     const PlanningTarget& planning_target,
     Trajectory1DBundle* ptr_lon_trajectory_bundle,
     Trajectory1DBundle* ptr_lat_trajectory_bundle) {
+  // 纵向轨迹生成    
   GenerateLongitudinalTrajectoryBundle(planning_target,
                                        ptr_lon_trajectory_bundle);
-
+  // 横向轨迹生成
   GenerateLateralTrajectoryBundle(ptr_lat_trajectory_bundle);
 }
 
@@ -68,8 +69,12 @@ void Trajectory1dGenerator::GenerateSpeedProfilesForCruising(
     const double target_speed,
     Trajectory1DBundle* ptr_lon_trajectory_bundle) const {
   ADEBUG << "cruise speed is  " << target_speed;
+  /**
+   * 对不同时刻的速度进行采样
+   * **/
   auto end_conditions =
       end_condition_sampler_.SampleLonEndConditionsForCruising(target_speed);
+
   if (end_conditions.empty()) {
     return;
   }
@@ -77,6 +82,11 @@ void Trajectory1dGenerator::GenerateSpeedProfilesForCruising(
   // For the cruising case, We use the "QuarticPolynomialCurve1d" class (not the
   // "QuinticPolynomialCurve1d" class) to generate curves. Therefore, we can't
   // invoke the common function to generate trajectory bundles.
+  /**
+   * 由于采样状态的纵向位移s是变化的、不受约束的，因此少了一个约束条件，、
+   * 因此为了饱和约束，采用了4次多项式拟合。
+   * **/
+  // 根据边界条件和初始状态生成四次多项式，初始条件:{s,ds,dds},结束状态:{ds,dds}
   GenerateTrajectory1DBundle<4>(init_lon_state_, end_conditions,
                                 ptr_lon_trajectory_bundle);
 }
@@ -105,6 +115,7 @@ void Trajectory1dGenerator::GenerateSpeedProfilesForPathTimeObstacles(
   }
 
   // Use the common function to generate trajectory bundles.
+  // 根据边界条件和初始状态生成五式，初始条件:{s,ds,dds},结束状态:{s,ds,dds}
   GenerateTrajectory1DBundle<5>(init_lon_state_, end_conditions,
                                 ptr_lon_trajectory_bundle);
 }
@@ -113,9 +124,10 @@ void Trajectory1dGenerator::GenerateLongitudinalTrajectoryBundle(
     const PlanningTarget& planning_target,
     Trajectory1DBundle* ptr_lon_trajectory_bundle) const {
   // cruising trajectories are planned regardlessly.
+  // 巡航模式下的纵向拟合函数
   GenerateSpeedProfilesForCruising(planning_target.cruise_speed(),
                                    ptr_lon_trajectory_bundle);
-
+  // 根据障碍物进行纵向拟合函数的求解
   GenerateSpeedProfilesForPathTimeObstacles(ptr_lon_trajectory_bundle);
 
   if (planning_target.has_stop_point()) {
@@ -139,8 +151,15 @@ void Trajectory1dGenerator::GenerateLateralTrajectoryBundle(
                                   ptr_lat_trajectory_bundle);
   } else {
     double s_min = init_lon_state_[0];
+    /**
+     * DEFINE_double(max_s_lateral_optimization, 60.0,
+              "The maximal s for lateral optimization.");
+     * **/
     double s_max = s_min + FLAGS_max_s_lateral_optimization;
-
+    /**
+     * DEFINE_double(default_delta_s_lateral_optimization, 1.0,
+              "The default delta s for lateral optimization.");
+     * **/
     double delta_s = FLAGS_default_delta_s_lateral_optimization;
 
     auto lateral_bounds =

@@ -44,6 +44,7 @@ std::vector<const Obstacle*> PredictionQuerier::GetObstacles() const {
   return obstacles_;
 }
 
+// 障碍物t时刻在s位置沿参考线的速度
 double PredictionQuerier::ProjectVelocityAlongReferenceLine(
     const std::string& obstacle_id, const double s, const double t) const {
   ACHECK(id_obstacle_map_.find(obstacle_id) != id_obstacle_map_.end());

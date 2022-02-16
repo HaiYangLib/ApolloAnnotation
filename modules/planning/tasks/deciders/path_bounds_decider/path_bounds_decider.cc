@@ -906,6 +906,8 @@ bool PathBoundsDecider::InitPathBoundary(
 
   // Starting from ADC's current position, increment until the horizon, and
   // set lateral bounds to be infinite at every spot.
+  // kPathBoundsDeciderHorizon = 100.0;
+  // 分段
   for (double curr_s = adc_frenet_s_;
        curr_s < std::fmin(adc_frenet_s_ +
                               std::fmax(kPathBoundsDeciderHorizon,

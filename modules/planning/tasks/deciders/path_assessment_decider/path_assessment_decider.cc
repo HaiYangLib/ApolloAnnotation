@@ -54,6 +54,11 @@ Status PathAssessmentDecider::Process(
   CHECK_NOTNULL(frame);
   CHECK_NOTNULL(reference_line_info);
   // skip path_assessment_decider if reused path
+  /**
+   * DEFINE_bool(enable_skip_path_tasks, false,
+            "skip all path tasks and use trimmed previous path");
+   * **/
+  // 如果路径重复使用则跳过
   if (FLAGS_enable_skip_path_tasks && reference_line_info->path_reusable()) {
     return Status::OK();
   }
@@ -69,6 +74,10 @@ Status PathAssessmentDecider::Process(
 
   // 1. Remove invalid path.
   std::vector<PathData> valid_path_data;
+  /**
+   * 其中fallback的无效路径是偏离参考线以及道路的路径。
+   * regular的无效路径是偏离参考线、道路，碰撞，停在相邻的逆向车道的路径。
+   * **/
   for (const auto& curr_path_data : candidate_path_data) {
     // RecordDebugInfo(curr_path_data, curr_path_data.path_label(),
     //                 reference_line_info);
@@ -90,7 +99,7 @@ Status PathAssessmentDecider::Process(
   // 2. Analyze and add important info for speed decider to use
   size_t cnt = 0;
   const Obstacle* blocking_obstacle_on_selflane = nullptr;
-  for (size_t i = 0; i != valid_path_data.size(); ++i) {
+  for (size_t i = 0; i != valid_path_data.size(); ++i) {  
     auto& curr_path_data = valid_path_data[i];
     if (curr_path_data.path_label().find("fallback") != std::string::npos) {
       // remove empty path_data.
@@ -129,6 +138,7 @@ Status PathAssessmentDecider::Process(
     ADEBUG << "For " << curr_path_data.path_label() << ", "
            << "path length = " << curr_path_data.frenet_frame_path().size();
   }
+
   valid_path_data.resize(cnt);
   // If there is no valid path_data, exit.
   if (valid_path_data.empty()) {
@@ -152,6 +162,7 @@ Status PathAssessmentDecider::Process(
       std::string::npos) {
     FLAGS_static_obstacle_nudge_l_buffer = 0.8;
   }
+
   *(reference_line_info->mutable_path_data()) = valid_path_data.front();
   reference_line_info->SetBlockingObstacle(
       valid_path_data.front().blocking_obstacle_id());

@@ -48,16 +48,47 @@ Status LaneChangeDecider::Process(
 
   std::list<ReferenceLineInfo>* reference_line_info =
       frame->mutable_reference_line_info();
+  // 无参考轨迹，直接返回
   if (reference_line_info->empty()) {
     const std::string msg = "Reference lines empty.";
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
 
+  //判断是否是强制换道功能，如果是，调用优先换道功能
   if (lane_change_decider_config.reckless_change_lane()) {
     PrioritizeChangeLane(true, reference_line_info);
     return Status::OK();
   }
+
+  /**
+   * modules/planning/proto/planning_status.proto
+   * 
+   * message ChangeLaneStatus {
+   *  enum Status {
+   *    IN_CHANGE_LANE = 1;        // during change lane state
+   *    CHANGE_LANE_FAILED = 2;    // change lane failed
+   *    CHANGE_LANE_FINISHED = 3;  // change lane finished
+   *  }
+   *  optional Status status = 1;
+   *  // the id of the route segment that the vehicle is driving on
+   *  optional string path_id = 2;
+   *  // the time stamp when the state started.
+   *  optional double timestamp = 3;
+   *  // the starting position only after which lane-change can happen.
+   *  optional bool exist_lane_change_start_position = 4 [default = false];
+   *  optional apollo.common.Point3D lane_change_start_position = 5;
+   *  // the last time stamp when the lane-change planning succeed.
+   *  optional double last_succeed_timestamp = 6;
+   *  // if the current path and speed planning on the lane-change
+   *  // reference-line succeed.
+   *  optional bool is_current_opt_succeed = 7 [default = false];
+   *  // denotes if the surrounding area is clear for ego vehicle to
+   *  // change lane at this moment.
+   *  optional bool is_clear_to_change_lane = 8 [default = false];
+   * }
+   *
+   * **/
 
   auto* prev_status = injector_->planning_context()
                           ->mutable_planning_status()
@@ -155,16 +186,14 @@ void LaneChangeDecider::UpdatePreparationDistance(
   ADEBUG << "Lane Change Status: " << lane_change_status->status();
   // If lane change planning succeeded, update and return
   if (is_opt_succeed) {
-    lane_change_status->set_last_succeed_timestamp(
-        Clock::NowInSeconds());
+    lane_change_status->set_last_succeed_timestamp(Clock::NowInSeconds());
     lane_change_status->set_is_current_opt_succeed(true);
     return;
   }
   // If path optimizer or speed optimizer failed, report the status
   lane_change_status->set_is_current_opt_succeed(false);
   // If the planner just succeed recently, let's be more patient and try again
-  if (Clock::NowInSeconds() -
-          lane_change_status->last_succeed_timestamp() <
+  if (Clock::NowInSeconds() - lane_change_status->last_succeed_timestamp() <
       FLAGS_allowed_lane_change_failure_time) {
     return;
   }
@@ -205,7 +234,12 @@ void LaneChangeDecider::UpdateStatus(double timestamp,
   lane_change_status->set_path_id(path_id);
   lane_change_status->set_status(status_code);
 }
-
+/**
+ * PrioritizeChangeLane 排序换道参考线
+ * 首先获取第一条参考线的迭代器，然后遍历所有的参考线，
+ * 如果当前的参考线为允许变道参考线，则将第一条参考线更换为当前迭代器所指向的参考线。
+ * 注意，可变车道为按迭代器的顺序求取，一旦发现可变车道，即推出循环。
+ * **/
 void LaneChangeDecider::PrioritizeChangeLane(
     const bool is_prioritize_change_lane,
     std::list<ReferenceLineInfo>* reference_line_info) const {
@@ -220,6 +254,7 @@ void LaneChangeDecider::PrioritizeChangeLane(
   if (!lane_change_decider_config.enable_prioritize_change_lane()) {
     return;
   }
+
   auto iter = reference_line_info->begin();
   while (iter != reference_line_info->end()) {
     ADEBUG << "iter->IsChangeLanePath(): " << iter->IsChangeLanePath();
@@ -234,6 +269,7 @@ void LaneChangeDecider::PrioritizeChangeLane(
     }
     ++iter;
   }
+  
   reference_line_info->splice(reference_line_info->begin(),
                               *reference_line_info, iter);
   ADEBUG << "reference_line_info->IsChangeLanePath(): "

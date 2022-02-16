@@ -15,11 +15,10 @@
  *****************************************************************************/
 
 /******************************************************************************
-* AnnotationAuthor  : HaiYang
-* Email   : hanhy20@mails.jlu.edu.cn
-* Desc    : annotation for apollo
-******************************************************************************/
-
+ * AnnotationAuthor  : HaiYang
+ * Email   : hanhy20@mails.jlu.edu.cn
+ * Desc    : annotation for apollo
+ ******************************************************************************/
 
 /**
  * @file
@@ -686,6 +685,9 @@ bool ReferenceLine::GetSLBoundary(const common::math::Box2d& box,
     sl_corners.push_back(std::move(sl_point));
   }
 
+  /**
+   * 生成sl_boundary边界, 增加一些中间点使采集节点更多
+   * **/
   for (size_t i = 0; i < corners.size(); ++i) {
     auto index0 = i;
     auto index1 = (i + 1) % corners.size();
@@ -709,6 +711,7 @@ bool ReferenceLine::GetSLBoundary(const common::math::Box2d& box,
     *sl_boundary->add_boundary_point() = sl_corners[index0];
 
     // sl_point is outside of polygon; add to the vertex list
+    // 使用了凸包的思想
     if (v0.CrossProd(v1) < 0.0) {
       *sl_boundary->add_boundary_point() = sl_point_mid;
     }
@@ -721,6 +724,7 @@ bool ReferenceLine::GetSLBoundary(const common::math::Box2d& box,
     end_l = std::fmax(end_l, sl_point.l());
   }
 
+  // 边界
   sl_boundary->set_start_s(start_s);
   sl_boundary->set_end_s(end_s);
   sl_boundary->set_start_l(start_l);

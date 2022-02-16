@@ -101,6 +101,7 @@ LaneSegment PncMap::ToLaneSegment(const routing::LaneSegment &segment) const {
   return LaneSegment(lane, segment.start_s(), segment.end_s());
 }
 
+// next_routing_waypoint_index_在PncMap::FutureRouteWaypoints函数中用到
 void PncMap::UpdateNextRoutingWaypointIndex(int cur_index) {
   if (cur_index < 0) {
     next_routing_waypoint_index_ = 0;
@@ -154,6 +155,7 @@ void PncMap::UpdateNextRoutingWaypointIndex(int cur_index) {
   }
 }
 
+// 
 std::vector<routing::LaneWaypoint> PncMap::FutureRouteWaypoints() const {
   const auto &waypoints = routing_.routing_request().waypoint();
   return std::vector<routing::LaneWaypoint>(
@@ -321,7 +323,7 @@ bool PncMap::UpdateRoutingResponse(const routing::RoutingResponse &routing) {
   for (size_t j = 0; j < route_indices_.size(); ++j) {
     /**
      * request_waypoints.Get(i))是否在route_indices_[j].segment中
-     *
+
      * **/
     while (i < request_waypoints.size() &&
            RouteSegments::WithinLaneSegment(route_indices_[j].segment,

@@ -31,6 +31,7 @@ namespace apollo {
 namespace common {
 namespace math {
 
+// 返回(x,y)距离reference_line最近的点
 PathPoint PathMatcher::MatchToPath(const std::vector<PathPoint>& reference_line,
                                    const double x, const double y) {
   CHECK_GT(reference_line.size(), 0);

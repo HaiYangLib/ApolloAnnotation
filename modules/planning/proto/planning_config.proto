@@ -103,11 +103,14 @@ message ScenarioEmergencyStopConfig {
   optional double stop_distance = 2 [default = 1.0];  // meter
 }
 
-message ScenarioLaneFollowConfig {}
+message ScenarioLaneFollowConfig {
+}
 
-message ScenarioLearningModelSampleConfig {}
+message ScenarioLearningModelSampleConfig {
+}
 
-message ScenarioNarrowStreetUTurnConfig {}
+message ScenarioNarrowStreetUTurnConfig {
+}
 
 message ScenarioParkAndGoConfig {
   optional double front_obstacle_buffer = 1 [default = 4.0];  // meter
@@ -316,7 +319,8 @@ message ScenarioConfig {
   repeated StageConfig stage_config = 17;
 }
 
-message PlannerPublicRoadConfig {}
+message PlannerPublicRoadConfig {
+}
 
 message PlannerNaviConfig {
   repeated TaskConfig.TaskType task = 1;

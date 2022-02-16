@@ -107,6 +107,7 @@ class ScenarioManager final {
  private:
   std::shared_ptr<DependencyInjector> injector_;
   PlanningConfig planning_config_;
+  // modules/planning/proto/planning_config.proto
   std::unordered_map<ScenarioConfig::ScenarioType, ScenarioConfig,
                      std::hash<int>>
       config_map_;

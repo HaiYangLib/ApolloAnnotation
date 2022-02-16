@@ -182,11 +182,13 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
   }
 
   DCHECK_EQ(reference_lines.size(), segments.size());
-
-  // 步骤3：计算前向距离 视车速而定 180或250
+ 
   auto forward_limit =
       hdmap::PncMap::LookForwardDistance(vehicle_state.linear_velocity());
+  
 
+  // 步骤3：调整reference_lines长度，筛选掉segments中不在范围内的LaneSegment
+  // 这些操作实际上在ReferenceLineProvider生成参考线的时候就已经做了
   for (auto& ref_line : reference_lines) {
     /**
      * DEFINE_double(
@@ -204,6 +206,7 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
     }
   }
 
+ 
   for (auto& seg : segments) {
     /**
      * DEFINE_double(
@@ -220,7 +223,7 @@ Status OnLanePlanning::InitFrame(const uint32_t sequence_num,
     }
   }
 
-  // 初始化Frame
+  // 步骤4：初始化Frame
   auto status = frame_->Init(
       injector_->vehicle_state(), reference_lines, segments,
       reference_line_provider_->FutureRouteWaypoints(), injector_->ego_info());

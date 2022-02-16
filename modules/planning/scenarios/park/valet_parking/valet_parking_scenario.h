@@ -41,6 +41,7 @@ struct ValetParkingContext {
   hdmap::MapPathPoint pre_stop_rightaway_point;
 };
 
+// 代客泊车
 class ValetParkingScenario : public Scenario {
  public:
   ValetParkingScenario(const ScenarioConfig& config,

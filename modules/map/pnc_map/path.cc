@@ -383,11 +383,11 @@ void Path::Init() {
    * road_left_width_
    * road_right_width_
    * **/
-  InitWidth(); 
-   
+  InitWidth();
+
   /**
    * 初始化重叠其
-   * **/ 
+   * **/
   InitOverlaps();
 }
 
@@ -425,6 +425,7 @@ void Path::InitPoints() {
     unit_directions_.push_back(heading);
   }
   length_ = s;
+  //  kSampleDistance = 0.25;
   num_sample_points_ = static_cast<int>(length_ / kSampleDistance) + 1;
   num_segments_ = num_points_ - 1;
 
@@ -449,6 +450,8 @@ void Path::InitLaneSegments() {
       }
     }
   }
+
+  // 将同一lane的不同段拼接起来
   LaneSegment::Join(&lane_segments_);
 
   if (lane_segments_.empty()) {
@@ -538,6 +541,7 @@ void Path::InitWidth() {
 /**
  * 初始化:
  * last_point_index_
+ * 分段采样索引
  * **/
 void Path::InitPointIndex() {
   last_point_index_.clear();
@@ -556,20 +560,34 @@ void Path::InitPointIndex() {
   CHECK_EQ(last_point_index_.size(), num_sample_points_);
 }
 
+/**
+ * using OverlapInfoConstPtr = std::shared_ptr<const OverlapInfo>;
+ * using GetOverlapFromLaneFunc =
+ *     std::function<const std::vector<OverlapInfoConstPtr>&(const LaneInfo&)>;
+ * 一个路段存在多个覆盖区域，每个覆盖区域又存在多个物体，所以访问覆盖区域中的物体，代码需要3个循环。
+ * **/
 void Path::GetAllOverlaps(GetOverlapFromLaneFunc GetOverlaps_from_lane,
                           std::vector<PathOverlap>* const overlaps) const {
   if (overlaps == nullptr) {
     return;
   }
+
+  // Step 1. 计算所有的覆盖，保存到overlaps_by_id
   overlaps->clear();
+
   std::unordered_map<std::string, std::vector<std::pair<double, double>>>
       overlaps_by_id;
+
   double s = 0.0;
+
+  // 循环1. 对每个LaneSegment分别做覆盖检测
   for (const auto& lane_segment : lane_segments_) {
     if (lane_segment.lane == nullptr) {
       continue;
     }
+    // 循环2. 每个LaneSegment中有多个覆盖区域，分别做检测
     for (const auto& overlap : GetOverlaps_from_lane(*(lane_segment.lane))) {
+      // 获得覆盖区域信息
       const auto& overlap_info =
           overlap->GetObjectOverlapInfo(lane_segment.lane->id());
       if (overlap_info == nullptr) {
@@ -579,13 +597,16 @@ void Path::GetAllOverlaps(GetOverlapFromLaneFunc GetOverlaps_from_lane,
       const auto& lane_overlap_info = overlap_info->lane_overlap_info();
       if (lane_overlap_info.start_s() <= lane_segment.end_s &&
           lane_overlap_info.end_s() >= lane_segment.start_s) {
+        // 这里adjusted_start_s和adjusted_end_s相对于第一个LaneSegment的start_s来计算的
         const double ref_s = s - lane_segment.start_s;
         const double adjusted_start_s =
             std::max(lane_overlap_info.start_s(), lane_segment.start_s) + ref_s;
         const double adjusted_end_s =
             std::min(lane_overlap_info.end_s(), lane_segment.end_s) + ref_s;
+        // 循环3. 每个覆盖区域有多类物体，循环访问
         for (const auto& object : overlap->overlap().object()) {
           if (object.id().id() != lane_segment.lane->id().id()) {
+            // overlaps_by_id详细记录了每个物体占据的道路段，哪里开始到哪里结束
             overlaps_by_id[object.id().id()].emplace_back(adjusted_start_s,
                                                           adjusted_end_s);
           }
@@ -594,6 +615,9 @@ void Path::GetAllOverlaps(GetOverlapFromLaneFunc GetOverlaps_from_lane,
     }
     s += lane_segment.end_s - lane_segment.start_s;
   }
+
+  // Step 2. 覆盖合并，保存到函数参数overlaps中
+  // E.G. overlaps_by_id的人行横道中两块区域可能可以相连
   for (auto& overlaps_one_object : overlaps_by_id) {
     const std::string& object_id = overlaps_one_object.first;
     auto& segments = overlaps_one_object.second;
@@ -610,6 +634,8 @@ void Path::GetAllOverlaps(GetOverlapFromLaneFunc GetOverlaps_from_lane,
       }
     }
   }
+
+  // 覆盖物体根据离主车距离由近及远排序
   std::sort(overlaps->begin(), overlaps->end(),
             [](const PathOverlap& overlap1, const PathOverlap& overlap2) {
               return overlap1.start_s < overlap2.start_s;
@@ -647,10 +673,12 @@ MapPathPoint Path::GetSmoothPoint(const InterpolatedIndex& index) const {
   CHECK_LT(index.id, num_points_);
 
   const MapPathPoint& ref_point = path_points_[index.id];
+  // constexpr double kMathEpsilon = 1e-10;
   if (std::abs(index.offset) > kMathEpsilon) {
     const Vec2d delta = unit_directions_[index.id] * index.offset;
     MapPathPoint point({ref_point.x() + delta.x(), ref_point.y() + delta.y()},
                        ref_point.heading());
+
     if (index.id < num_segments_ && !ref_point.lane_waypoints().empty()) {
       const LaneSegment& lane_segment = lane_segments_to_next_point_[index.id];
       auto ref_lane_waypoint = ref_point.lane_waypoints()[0];
@@ -661,14 +689,17 @@ MapPathPoint Path::GetSmoothPoint(const InterpolatedIndex& index) const {
             break;
           }
         }
+
         point.add_lane_waypoint(
             LaneWaypoint(lane_segment.lane, lane_segment.start_s + index.offset,
                          ref_lane_waypoint.l));
       }
     }
+
     if (point.lane_waypoints().empty() && !ref_point.lane_waypoints().empty()) {
       point.add_lane_waypoint(ref_point.lane_waypoints()[0]);
     }
+
     return point;
   } else {
     return ref_point;
@@ -695,7 +726,7 @@ double Path::GetSFromIndex(const InterpolatedIndex& index) const {
  *  double offset = 0.0;
  * };
  * **/
-InterpolatedIndex Path::GetIndexFromS(double s) const {
+InterpolatedIndex Path:: - GetIndexFromS(double s) const {
   if (s <= 0.0) {
     return {0, 0.0};
   }
@@ -714,6 +745,7 @@ InterpolatedIndex Path::GetIndexFromS(double s) const {
                   ? std::min(num_points_, last_point_index_[next_sample_id] + 1)
                   : num_points_);
 
+  // 二分查找
   while (low + 1 < high) {
     const int mid = (low + high) / 2;
     if (accumulated_s_[mid] <= s) {
@@ -874,7 +906,7 @@ bool Path::GetProjection(const Vec2d& point, double* accumulate_s,
   CHECK_GE(num_points_, 2);
   *min_distance = std::numeric_limits<double>::infinity();
   int min_index = 0;
-  for (int i = 0; i < num_segments_; ++i) { 
+  for (int i = 0; i < num_segments_; ++i) {
     const double distance = segments_[i].DistanceSquareTo(point);
     if (distance < *min_distance) {
       min_index = i;

@@ -34,11 +34,11 @@ limitations under the License.
 #include "modules/map/proto/map_parking_space.pb.h"
 #include "modules/map/proto/map_pnc_junction.pb.h"
 #include "modules/map/proto/map_road.pb.h"
+#include "modules/map/proto/map_rsu.pb.h"
 #include "modules/map/proto/map_signal.pb.h"
 #include "modules/map/proto/map_speed_bump.pb.h"
 #include "modules/map/proto/map_stop_sign.pb.h"
 #include "modules/map/proto/map_yield_sign.pb.h"
-#include "modules/map/proto/map_rsu.pb.h"
 
 /**
  * @namespace apollo::hdmap
@@ -446,6 +446,14 @@ class OverlapInfo {
   const ObjectOverlapInfo *GetObjectOverlapInfo(const Id &id) const;
 
  private:
+  /**
+   * modules/map/proto/map_overlap.proto
+   * message Overlap {
+   *   optional Id id = 1;
+   *   repeated ObjectOverlapInfo object = 2;
+   *   repeated RegionOverlapInfo region_overlap = 3;
+   * }
+   * **/
   const Overlap &overlap_;
 };
 
@@ -518,14 +526,10 @@ using JunctionBoundaryPtr = std::shared_ptr<JunctionBoundary>;
 
 class RSUInfo {
  public:
-  explicit RSUInfo(const RSU& rsu);
+  explicit RSUInfo(const RSU &rsu);
 
-  const Id& id() const {
-    return _rsu.id();
-  }
-  const RSU& rsu() const {
-    return _rsu;
-  }
+  const Id &id() const { return _rsu.id(); }
+  const RSU &rsu() const { return _rsu; }
 
  private:
   RSU _rsu;

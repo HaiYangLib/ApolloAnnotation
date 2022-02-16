@@ -59,9 +59,11 @@ STBoundary::STBoundary(
   for (const auto& point : lower_points_) {
     min_s_ = std::fmin(min_s_, point.s());
   }
+
   for (const auto& point : upper_points_) {
     max_s_ = std::fmax(max_s_, point.s());
   }
+  
   min_t_ = lower_points_.front().t();
   max_t_ = lower_points_.back().t();
 

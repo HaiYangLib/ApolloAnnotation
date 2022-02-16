@@ -90,16 +90,17 @@ int BuildStopDecision(const std::string& stop_wall_id,
   CHECK_NOTNULL(reference_line_info);
 
   const auto& reference_line = reference_line_info->reference_line();
-
-  // create virtual stop wall
+  
+  // 创建一个虚拟障碍物
   const auto* obstacle =
       frame->CreateStopObstacle(stop_wall_id, lane_id, lane_s);
   if (!obstacle) {
     AERROR << "Failed to create obstacle [" << stop_wall_id << "]";
     return -1;
   }
-
+  // 将障碍添加到reference_line_info的path_decision_
   const Obstacle* stop_wall = reference_line_info->AddObstacle(obstacle);
+
   if (!stop_wall) {
     AERROR << "Failed to create obstacle for: " << stop_wall_id;
     return -1;
@@ -111,7 +112,7 @@ int BuildStopDecision(const std::string& stop_wall_id,
     return 0;
   }
 
-  // build stop decision
+  // 创建停止点
   auto stop_point = reference_line.GetReferencePoint(
       stop_wall->PerceptionSLBoundary().start_s() - stop_distance);
 

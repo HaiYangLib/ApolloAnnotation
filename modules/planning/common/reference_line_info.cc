@@ -47,6 +47,11 @@ using apollo::common::util::PointFactory;
 std::unordered_map<std::string, bool>
     ReferenceLineInfo::junction_right_of_way_map_;
 
+/**
+ * bool Frame::CreateReferenceLineInfo:
+ *   reference_line_info_.emplace_back(vehicle_state_, planning_start_point_,
+ *                                      ref_line_iter, *segments_iter);
+ * **/
 ReferenceLineInfo::ReferenceLineInfo(const common::VehicleState& vehicle_state,
                                      const TrajectoryPoint& adc_planning_point,
                                      const ReferenceLine& reference_line,
@@ -73,6 +78,7 @@ bool ReferenceLineInfo::Init(const std::vector<const Obstacle*>& obstacles) {
   Box2d vehicle_box(vehicle_center, vehicle_state_.heading(), param.length(),
                     param.width());
 
+  // 车辆当前位置的LBoundary
   if (!reference_line_.GetSLBoundary(box, &adc_sl_boundary_)) {
     AERROR << "Failed to get ADC boundary from box: " << box.DebugString();
     return false;
@@ -86,12 +92,15 @@ bool ReferenceLineInfo::Init(const std::vector<const Obstacle*>& obstacles) {
           << " is not on reference line:[0, " << reference_line_.Length()
           << "]";
   }
+
   static constexpr double kOutOfReferenceLineL = 10.0;  // in meters
   if (adc_sl_boundary_.start_l() > kOutOfReferenceLineL ||
       adc_sl_boundary_.end_l() < -kOutOfReferenceLineL) {
     AERROR << "Ego vehicle is too far away from reference line.";
     return false;
   }
+
+  // 车辆当前位置是否在车道上
   is_on_reference_line_ = reference_line_.IsOnLane(adc_sl_boundary_);
   if (!AddObstacles(obstacles)) {
     AERROR << "Failed to add obstacles to reference line";
@@ -101,11 +110,18 @@ bool ReferenceLineInfo::Init(const std::vector<const Obstacle*>& obstacles) {
   const auto& map_path = reference_line_.map_path();
   for (const auto& speed_bump : map_path.speed_bump_overlaps()) {
     // -1 and + 1.0 are added to make sure it can be sampled.
+    /**
+     * DEFINE_double(speed_bump_speed_limit, 4.4704,
+              "the speed limit when passing a speed bump, m/s. The default "
+              "speed limit is 10 mph.");
+     * 
+     */
     reference_line_.AddSpeedLimit(speed_bump.start_s - 1.0,
                                   speed_bump.end_s + 1.0,
                                   FLAGS_speed_bump_speed_limit);
   }
 
+  // DEFINE_double(default_cruise_speed, 5.0, "default cruise speed");
   SetCruiseSpeed(FLAGS_default_cruise_speed);
 
   // set lattice planning target speed limit;
@@ -371,6 +387,7 @@ Obstacle* ReferenceLineInfo::AddObstacle(const Obstacle* obstacle) {
     return mutable_obstacle;
   }
   mutable_obstacle->SetPerceptionSlBoundary(perception_sl);
+  // 判断该障碍物是否阻塞车道
   mutable_obstacle->CheckLaneBlocking(reference_line_);
   if (mutable_obstacle->IsLaneBlocking()) {
     ADEBUG << "obstacle [" << obstacle->Id() << "] is lane blocking.";
@@ -402,6 +419,10 @@ Obstacle* ReferenceLineInfo::AddObstacle(const Obstacle* obstacle) {
 
 bool ReferenceLineInfo::AddObstacles(
     const std::vector<const Obstacle*>& obstacles) {
+  /**
+   * DEFINE_bool(use_multi_thread_to_add_obstacles, false,
+   *         "use multiple thread to add obstacles.");
+   * **/
   if (FLAGS_use_multi_thread_to_add_obstacles) {
     std::vector<std::future<Obstacle*>> results;
     for (const auto* obstacle : obstacles) {

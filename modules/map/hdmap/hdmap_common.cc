@@ -113,7 +113,7 @@ PointENU PointFromVec2d(const Vec2d &point) {
 LaneInfo::LaneInfo(const Lane &lane) : lane_(lane) { Init(); }
 
 void LaneInfo::Init() {
-  // 填充points_
+  // 填充std::vector<apollo::common::math::Vec2d> points_;
   PointsFromCurve(lane_.central_curve(), &points_);
 
   CHECK_GE(points_.size(), 2);
@@ -141,22 +141,28 @@ void LaneInfo::Init() {
 
   accumulated_s_.push_back(s);
   total_length_ = s;
+
   ACHECK(!unit_directions_.empty());
+
   unit_directions_.push_back(unit_directions_.back());
 
   for (const auto &direction : unit_directions_) {
     headings_.push_back(direction.Angle());
   }
+
   for (const auto &overlap_id : lane_.overlap_id()) {
     overlap_ids_.emplace_back(overlap_id.id());
   }
+
   ACHECK(!segments_.empty());
 
   sampled_left_width_.clear();
   sampled_right_width_.clear();
+
   for (const auto &sample : lane_.left_sample()) {
     sampled_left_width_.emplace_back(sample.s(), sample.width());
   }
+
   for (const auto &sample : lane_.right_sample()) {
     sampled_right_width_.emplace_back(sample.s(), sample.width());
   }
@@ -514,6 +520,7 @@ void LaneInfo::CreateKDTree() {
   params.max_leaf_dimension = 5.0;  // meters.
   params.max_leaf_size = 16;
 
+  // std::vector<LaneSegmentBox> segment_box_list_;
   segment_box_list_.clear();
   for (size_t id = 0; id < segments_.size(); ++id) {
     const auto &segment = segments_[id];

@@ -318,6 +318,13 @@ const Obstacle *Frame::CreateStaticVirtualObstacle(const std::string &id,
   return ptr;
 }
 
+/**
+ * Status OnLanePlanning::InitFrame
+   auto status = frame_->Init(
+      injector_->vehicle_state(), reference_lines, segments,
+      reference_line_provider_->FutureRouteWaypoints(), injector_->ego_info());
+ *
+ * **/
 Status Frame::Init(
     const common::VehicleStateProvider *vehicle_state_provider,
     const std::list<ReferenceLine> &reference_lines,
@@ -325,11 +332,16 @@ Status Frame::Init(
     const std::vector<routing::LaneWaypoint> &future_route_waypoints,
     const EgoInfo *ego_info) {
   // TODO(QiL): refactor this to avoid redundant nullptr checks in scenarios.
+  /**
+   * 从local_view_中读取数据填充
+   * obstacles_,traffic_lights_,pad_msg_driving_action_
+   * **/
   auto status = InitFrameData(vehicle_state_provider, ego_info);
   if (!status.ok()) {
     AERROR << "failed to init frame:" << status.ToString();
     return status;
   }
+  
   if (!CreateReferenceLineInfo(reference_lines, segments)) {
     const std::string msg = "Failed to init reference line info.";
     AERROR << msg;
@@ -345,6 +357,10 @@ Status Frame::InitForOpenSpace(
   return InitFrameData(vehicle_state_provider, ego_info);
 }
 
+/**
+ * 从local_view_中读取数据填充
+ * obstacles_,traffic_lights_,pad_msg_driving_action_
+ * **/
 Status Frame::InitFrameData(
     const common::VehicleStateProvider *vehicle_state_provider,
     const EgoInfo *ego_info) {
@@ -358,20 +374,26 @@ Status Frame::InitFrameData(
   ADEBUG << "Enabled align prediction time ? : " << std::boolalpha
          << FLAGS_align_prediction_time;
 
+  /**
+   * DEFINE_bool(align_prediction_time, false,
+   *         "enable align prediction data based planning time");
+   * **/
   if (FLAGS_align_prediction_time) {
     auto prediction = *(local_view_.prediction_obstacles);
     AlignPredictionTime(vehicle_state_.timestamp(), &prediction);
     local_view_.prediction_obstacles->CopyFrom(prediction);
   }
+
   for (auto &ptr :
        Obstacle::CreateObstacles(*local_view_.prediction_obstacles)) {
     AddObstacle(*ptr);
   }
+
   if (planning_start_point_.v() < 1e-3) {
     const auto *collision_obstacle = FindCollisionObstacle(ego_info);
     if (collision_obstacle != nullptr) {
-      const std::string msg = absl::StrCat(
-          "Found collision with obstacle: ", collision_obstacle->Id());
+      const std::string msg = absl::StrCat("Found collision with obstacle: ",
+                                           collision_obstacle->Id());
       AERROR << msg;
       monitor_logger_buffer_.ERROR(msg);
       return Status(ErrorCode::PLANNING_ERROR, msg);
@@ -479,8 +501,8 @@ void Frame::ReadTrafficLights() {
   if (traffic_light_detection == nullptr) {
     return;
   }
-  const double delay = traffic_light_detection->header().timestamp_sec() -
-                       Clock::NowInSeconds();
+  const double delay =
+      traffic_light_detection->header().timestamp_sec() - Clock::NowInSeconds();
   if (delay > FLAGS_signal_expire_time_sec) {
     ADEBUG << "traffic signals msg is expired, delay = " << delay
            << " seconds.";

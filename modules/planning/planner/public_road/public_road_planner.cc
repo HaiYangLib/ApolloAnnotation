@@ -25,6 +25,10 @@ using apollo::common::Status;
 using apollo::common::TrajectoryPoint;
 
 Status PublicRoadPlanner::Init(const PlanningConfig& config) {
+  /**
+   * config对应的配置文件：
+   * modules/planning/conf/planning_config.pb.txt
+   * **/
   config_ = config;
   scenario_manager_.Init(config);
   return Status::OK();
@@ -33,7 +37,9 @@ Status PublicRoadPlanner::Init(const PlanningConfig& config) {
 Status PublicRoadPlanner::Plan(const TrajectoryPoint& planning_start_point,
                                Frame* frame,
                                ADCTrajectory* ptr_computed_trajectory) {
+  // 步骤1:根新场景                               
   scenario_manager_.Update(planning_start_point, *frame);
+  // 步骤2:获取当前场景,并执行
   scenario_ = scenario_manager_.mutable_scenario();
   auto result = scenario_->Process(planning_start_point, frame);
 

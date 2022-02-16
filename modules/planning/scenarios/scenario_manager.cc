@@ -70,6 +70,7 @@ bool ScenarioManager::Init(const PlanningConfig& planning_config) {
    * 默认是车道线保持LANE_FOLLOW
    * **/
   RegisterScenarios();
+  // 默认场景:  ScenarioConfig::LANE_FOLLOW
   default_scenario_type_ = ScenarioConfig::LANE_FOLLOW;
   current_scenario_ = CreateScenario(default_scenario_type_);
   return true;
@@ -94,6 +95,10 @@ std::unique_ptr<Scenario> ScenarioManager::CreateScenario(
           config_map_[scenario_type], &scenario_context_, injector_));
       break;
     case ScenarioConfig::LANE_FOLLOW:
+      /**
+       * LaneFollowScenario对应的配置信息:
+       * modules/planning/conf/scenario/lane_follow_config.pb.txt
+       * **/
       ptr.reset(new lane_follow::LaneFollowScenario(
           config_map_[scenario_type], &scenario_context_, injector_));
       break;
@@ -193,8 +198,7 @@ void ScenarioManager::RegisterScenarios() {
   } else {
     /**
      * DEFINE_string(scenario_lane_follow_config_file,
-     *        "/apollo/modules/planning/conf/"
-     *         "scenario/lane_follow_config.pb.txt",
+     *        "/apollo/modules/planning/conf/scenario/lane_follow_config.pb.txt",
      *         "The lane_follow scenario configuration file");
      * config_map_会保存着各个场景对应的配置文件内容
      * **/
@@ -785,6 +789,12 @@ ScenarioConfig::ScenarioType ScenarioManager::SelectValetParkingScenario(
       config_map_[ScenarioConfig::VALET_PARKING].valet_parking_config();
 
   // TODO(All) trigger valet parking by route message definition as of now
+  /**
+   * message ScenarioValetParkingConfig {
+      optional double parking_spot_range_to_start = 1 [default = 20.0];
+      optional double max_valid_stop_distance = 2 [default = 1.0];  // meter
+    }
+   * **/
   double parking_spot_range_to_start =
       scenario_config.parking_spot_range_to_start();
   if (scenario::valet_parking::ValetParkingScenario::IsTransferable(
@@ -968,6 +978,7 @@ ScenarioConfig::ScenarioType ScenarioManager::ScenarioDispatchNonLearning(
 
   ////////////////////////////////////////
   // VALET_PARKING scenario
+  // 待客泊车
   if (scenario_type == default_scenario_type_) {
     scenario_type = SelectValetParkingScenario(frame);
   }

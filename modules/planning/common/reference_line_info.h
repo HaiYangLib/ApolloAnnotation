@@ -327,6 +327,21 @@ class ReferenceLineInfo {
 
   double priority_cost_ = 0.0;
 
+  /**
+   * message StopPoint {
+    optional double s = 1;
+    enum Type {
+      HARD = 0;
+      SOFT = 1;
+    }
+    optional Type type = 2 [default = HARD];
+    }
+
+    message PlanningTarget {
+      optional StopPoint stop_point = 1;
+      optional double cruise_speed = 2;
+    }
+   * **/
   PlanningTarget planning_target_;
 
   ADCTrajectory::TrajectoryType trajectory_type_ = ADCTrajectory::UNKNOWN;

@@ -68,13 +68,6 @@ class PlanningContext {
    * optional TrafficLightStatus traffic_light = 15;
    * optional YieldSignStatus yield_sign = 16;
    * }
-   * 
-   * 
-   * message ReroutingStatus {
-   * optional double last_rerouting_time = 1;
-   * optional bool need_rerouting = 2 [default = false];
-   * optional apollo.routing.RoutingRequest routing_request = 3;
-   * }
    * **/
   PlanningStatus planning_status_;
 };

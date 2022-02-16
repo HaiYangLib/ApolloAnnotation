@@ -36,12 +36,13 @@ QuarticPolynomialCurve1d::QuarticPolynomialCurve1d(
 QuarticPolynomialCurve1d::QuarticPolynomialCurve1d(
     const double x0, const double dx0, const double ddx0, const double dx1,
     const double ddx1, const double param) {
-  param_ = param;
+  param_ = param; //自变量维度
   start_condition_[0] = x0;
   start_condition_[1] = dx0;
   start_condition_[2] = ddx0;
   end_condition_[0] = dx1;
   end_condition_[1] = ddx1;
+
   ComputeCoefficients(x0, dx0, ddx0, dx1, ddx1, param);
 }
 
@@ -149,6 +150,7 @@ QuarticPolynomialCurve1d& QuarticPolynomialCurve1d::DerivedFromQuinticCurve(
   return *this;
 }
 
+// 计算四次多项式参数
 void QuarticPolynomialCurve1d::ComputeCoefficients(
     const double x0, const double dx0, const double ddx0, const double dx1,
     const double ddx1, const double p) {

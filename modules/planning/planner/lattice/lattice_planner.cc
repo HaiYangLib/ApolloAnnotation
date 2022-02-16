@@ -84,10 +84,27 @@ std::vector<PathPoint> ToDiscretizedReferenceLine(
   return path_points;
 }
 
+/**
+ * Status LatticePlanner::PlanOnReferenceLine：
+ * ComputeInitFrenetState(matched_point, planning_init_point, &init_s, &init_d);
+ * **/
 void ComputeInitFrenetState(const PathPoint& matched_point,
                             const TrajectoryPoint& cartesian_state,
                             std::array<double, 3>* ptr_s,
                             std::array<double, 3>* ptr_d) {
+  /**
+   * modules/common/math/cartesian_frenet_conversion.h
+   * static void cartesian_to_frenet(const double rs, const double rx,
+                                  const double ry, const double rtheta,
+                                  const double rkappa, const double rdkappa,
+                                  const double x, const double y,
+                                  const double v, const double a,
+                                  const double theta, const double kappa,
+                                  std::array<double, 3>* const ptr_s_condition,
+                                  std::array<double, 3>* const ptr_d_condition); 
+   * 
+   * 
+   */
   CartesianFrenetConverter::cartesian_to_frenet(
       matched_point.s(), matched_point.x(), matched_point.y(),
       matched_point.theta(), matched_point.kappa(), matched_point.dkappa(),
@@ -139,6 +156,11 @@ Status LatticePlanner::Plan(const TrajectoryPoint& planning_start_point,
                 "Failed to plan on any reference line.");
 }
 
+/**
+ * LatticePlanner::Plan:
+ * auto status =
+ *    PlanOnReferenceLine(planning_start_point, frame, &reference_line_info);
+ * **/
 Status LatticePlanner::PlanOnReferenceLine(
     const TrajectoryPoint& planning_init_point, Frame* frame,
     ReferenceLineInfo* reference_line_info) {
@@ -160,6 +182,12 @@ Status LatticePlanner::PlanOnReferenceLine(
 
   // 2. compute the matched point of the init planning point on the reference
   // line.
+ 
+  /**
+   * message PathPoint
+   * modules/common/proto/pnc_point.proto
+   * **/
+  //  返回(x,y)距离reference_line最近的点
   PathPoint matched_point = PathMatcher::MatchToPath(
       *ptr_reference_line, planning_init_point.path_point().x(),
       planning_init_point.path_point().y());
@@ -167,7 +195,6 @@ Status LatticePlanner::PlanOnReferenceLine(
   // 3. according to the matched point, compute the init state in Frenet frame.
   std::array<double, 3> init_s;
   std::array<double, 3> init_d;
-
   ComputeInitFrenetState(matched_point, planning_init_point, &init_s, &init_d);
 
   ADEBUG << "ReferenceLine and Frenet Conversion Time = "
@@ -214,6 +241,9 @@ Status LatticePlanner::PlanOnReferenceLine(
 
   std::vector<std::shared_ptr<Curve1d>> lon_trajectory1d_bundle;
   std::vector<std::shared_ptr<Curve1d>> lat_trajectory1d_bundle;
+  /**
+   * planning_target包含停止点和巡航速度
+   * **/
   trajectory1d_generator.GenerateTrajectoryBundles(
       planning_target, &lon_trajectory1d_bundle, &lat_trajectory1d_bundle);
 

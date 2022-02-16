@@ -154,16 +154,18 @@ Status LaneFollowStage::PlanOnReferenceLine(
     const TrajectoryPoint& planning_start_point, Frame* frame,
     ReferenceLineInfo* reference_line_info) {
   if (!reference_line_info->IsChangeLanePath()) {
+    //  kStraightForwardLineCost = 10.0
     reference_line_info->AddCost(kStraightForwardLineCost);
   }
+
   ADEBUG << "planning start point:" << planning_start_point.DebugString();
   ADEBUG << "Current reference_line_info is IsChangeLanePath: "
          << reference_line_info->IsChangeLanePath();
 
   auto ret = Status::OK();
+  // 选择一个task进行执行
   for (auto* task : task_list_) {
     const double start_timestamp = Clock::NowInSeconds();
-
     ret = task->Execute(frame, reference_line_info);
 
     const double end_timestamp = Clock::NowInSeconds();
@@ -243,6 +245,10 @@ Status LaneFollowStage::PlanOnReferenceLine(
     }
   }
 
+  /**
+   * DEFINE_bool(enable_trajectory_check, false,
+   *         "Enable sanity check for planning trajectory.");
+   * **/
   if (FLAGS_enable_trajectory_check) {
     if (ConstraintChecker::ValidTrajectory(trajectory) !=
         ConstraintChecker::Result::VALID) {

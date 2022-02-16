@@ -66,17 +66,21 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
   static constexpr size_t num_of_time_samples = 9;
   std::array<double, num_of_time_samples> time_samples;
 
+  // time_samples={0.01,1,2,3,4,5,6,7,8}
   for (size_t i = 1; i < num_of_time_samples; ++i) {
     auto ratio =
         static_cast<double>(i) / static_cast<double>(num_of_time_samples - 1);
+    // FLAGS_trajectory_time_length：8   
     time_samples[i] = FLAGS_trajectory_time_length * ratio;
   }
-
+  // 0.01
   time_samples[0] = FLAGS_polynomial_minimal_param;
 
   std::vector<Condition> end_s_conditions;
   for (const auto& time : time_samples) {
+    // 速度上届
     double v_upper = std::min(feasible_region_.VUpper(time), ref_cruise_speed);
+    // 速度下界
     double v_lower = feasible_region_.VLower(time);
 
     State lower_end_s = {0.0, v_lower, 0.0};
@@ -192,11 +196,13 @@ void EndConditionSampler::QueryFollowPathTimePoints(
    * DEFINE_double(time_min_density, 1.0,
    *           "Minimal time density to search sample points.");
    * **/
+  // 得到obstacle_id对应ST图的下边界,FLAGS_time_min_density是采样间隔1s
   std::vector<STPoint> follow_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
           obstacle_id, -FLAGS_numerical_epsilon, FLAGS_time_min_density);
 
   for (const auto& path_time_point : follow_path_time_points) {
+    // 障碍物t时刻在s位置沿参考线的速度
     double v = ptr_prediction_querier_->ProjectVelocityAlongReferenceLine(
         obstacle_id, path_time_point.s(), path_time_point.t());
     // Generate candidate s
@@ -207,6 +213,7 @@ void EndConditionSampler::QueryFollowPathTimePoints(
      * DEFINE_double(default_lon_buffer, 5.0,
      *         "Default longitudinal buffer to sample path-time points.");
      * **/
+    // 留一些余量
     double s_lower = s_upper - FLAGS_default_lon_buffer;
 
     /**
@@ -219,7 +226,7 @@ void EndConditionSampler::QueryFollowPathTimePoints(
     double s_gap =
         FLAGS_default_lon_buffer /
         static_cast<double>(FLAGS_num_sample_follow_per_timestamp - 1);
-
+    // FLAGS_num_sample_follow_per_timestamp：3
     for (size_t i = 0; i < FLAGS_num_sample_follow_per_timestamp; ++i) {
       double s = s_lower + s_gap * static_cast<double>(i);
       SamplePoint sample_point;
@@ -243,6 +250,7 @@ void EndConditionSampler::QueryOvertakePathTimePoints(
    * DEFINE_double(time_min_density, 1.0,
    *           "Minimal time density to search sample points.");
    * **/
+  // 得到obstacle_id对应ST图的上边界,FLAGS_time_min_density是采样间隔1s
   std::vector<STPoint> overtake_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
           obstacle_id, FLAGS_numerical_epsilon, FLAGS_time_min_density);

@@ -25,6 +25,10 @@ namespace apollo {
 namespace common {
 namespace math {
 
+/**
+ * 笛卡尔坐标系向Frenet坐标系转换
+ * 参考链接:https://blog.csdn.net/u013468614/article/details/108748016
+ * **/
 void CartesianFrenetConverter::cartesian_to_frenet(
     const double rs, const double rx, const double ry, const double rtheta,
     const double rkappa, const double rdkappa, const double x, const double y,

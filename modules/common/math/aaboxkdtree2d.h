@@ -165,14 +165,17 @@ class AABoxKDTree2dNode {
     if (params.max_depth >= 0 && depth_ >= params.max_depth) {
       return false;
     }
+
     if (static_cast<int>(objects.size()) <= std::max(1, params.max_leaf_size)) {
       return false;
     }
+
     if (params.max_leaf_dimension >= 0.0 &&
         std::max(max_x_ - min_x_, max_y_ - min_y_) <=
             params.max_leaf_dimension) {
       return false;
     }
+
     return true;
   }
 
@@ -377,6 +380,7 @@ class AABoxKDTree2dNode {
         }
       }
     }
+    
     InitObjects(other_objects);
   }
 

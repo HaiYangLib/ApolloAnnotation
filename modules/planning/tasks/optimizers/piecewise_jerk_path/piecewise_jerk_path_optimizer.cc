@@ -46,11 +46,13 @@ PiecewiseJerkPathOptimizer::PiecewiseJerkPathOptimizer(
   ACHECK(config_.has_piecewise_jerk_path_optimizer_config());
 }
 
+// 分段加加速度路径优化
 common::Status PiecewiseJerkPathOptimizer::Process(
     const SpeedData& speed_data, const ReferenceLine& reference_line,
     const common::TrajectoryPoint& init_point, const bool path_reusable,
     PathData* const final_path_data) {
   // skip piecewise_jerk_path_optimizer if reused path
+  // 如果重复使用Path则Return
   if (FLAGS_enable_skip_path_tasks && path_reusable) {
     return Status::OK();
   }
@@ -58,10 +60,16 @@ common::Status PiecewiseJerkPathOptimizer::Process(
          << ", y = " << init_point.path_point().y()
          << ", and angle = " << init_point.path_point().theta();
   common::TrajectoryPoint planning_start_point = init_point;
+  /**
+   * DEFINE_bool(use_front_axe_center_in_path_planning, false,
+            "If using front axe center in path planning, the path can be "
+            "more agile.");
+   * **/
   if (FLAGS_use_front_axe_center_in_path_planning) {
     planning_start_point =
         InferFrontAxeCenterFromRearAxeCenter(planning_start_point);
   }
+  // adc起始点转化到Frenet坐标
   const auto init_frenet_state =
       reference_line.ToFrenetFrame(planning_start_point);
 
@@ -86,11 +94,13 @@ common::Status PiecewiseJerkPathOptimizer::Process(
   const auto& reference_path_data = reference_line_info_->path_data();
 
   std::vector<PathData> candidate_path_data;
+  // 遍历每个路径边界
   for (const auto& path_boundary : path_boundaries) {
     size_t path_boundary_size = path_boundary.boundary().size();
 
     // if the path_boundary is normal, it is possible to have less than 2 points
     // skip path boundary of this kind
+    // 判断是否是Regular
     if (path_boundary.label().find("regular") != std::string::npos &&
         path_boundary_size < 2) {
       continue;
@@ -109,7 +119,7 @@ common::Status PiecewiseJerkPathOptimizer::Process(
     std::vector<double> opt_ddl;
 
     std::array<double, 3> end_state = {0.0, 0.0, 0.0};
-
+    // 
     if (!FLAGS_enable_force_pull_over_open_space_parking_test) {
       // pull over scenario
       // set end lateral to be at the desired pull over destination

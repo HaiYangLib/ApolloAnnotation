@@ -203,10 +203,12 @@ void Polygon2d::BuildFromPoints() {
   for (int i = 1; i < num_points_; ++i) {
     area_ += CrossProd(points_[0], points_[i - 1], points_[i]);
   }
+
   if (area_ < 0) {
     area_ = -area_;
     std::reverse(points_.begin(), points_.end());
   }
+
   area_ /= 2.0;
   CHECK_GT(area_, kMathEpsilon);
 
@@ -231,6 +233,7 @@ void Polygon2d::BuildFromPoints() {
   max_x_ = points_[0].x();
   min_y_ = points_[0].y();
   max_y_ = points_[0].y();
+  
   for (const auto &point : points_) {
     min_x_ = std::min(min_x_, point.x());
     max_x_ = std::max(max_x_, point.x());
