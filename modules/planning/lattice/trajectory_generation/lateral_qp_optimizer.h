@@ -46,11 +46,11 @@ class LateralQPOptimizer {
  protected:
   double delta_s_ = FLAGS_default_delta_s_lateral_optimization;
 
-  std::vector<double> opt_d_;
+  std::vector<double> opt_d_; // l
 
-  std::vector<double> opt_d_prime_;
+  std::vector<double> opt_d_prime_; // dl
 
-  std::vector<double> opt_d_pprime_;
+  std::vector<double> opt_d_pprime_; // ddl
 };
 
 }  // namespace planning

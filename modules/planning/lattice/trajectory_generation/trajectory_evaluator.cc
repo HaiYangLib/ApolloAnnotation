@@ -69,9 +69,7 @@ TrajectoryEvaluator::TrajectoryEvaluator(
    * DEFINE_double(trajectory_time_resolution, 0.1,
    *           "Trajectory time resolution in planning");
    * 
-   * 得到（start_time, end_time）时间段内所有障碍物的st值,包括s_upper和s_lower
-   * 
-   * 
+   * 得到（start_time, end_time）时间段内所有障碍物的s值,包括s_upper和s_lower
    * **/
   path_time_intervals_ = path_time_graph_->GetPathBlockingIntervals(
       start_time, end_time, FLAGS_trajectory_time_resolution);
@@ -90,7 +88,6 @@ TrajectoryEvaluator::TrajectoryEvaluator(
    * **/
   for (const auto& lon_trajectory : lon_trajectories) {
     double lon_end_s = lon_trajectory->Evaluate(0, end_time);
-
     /**
      * DEFINE_double(lattice_stop_buffer, 0.02,
      *         "The buffer before the stop s to check trajectories.");
@@ -161,29 +158,39 @@ double TrajectoryEvaluator::Evaluate(
   // 5. Cost of lateral comfort
 
   // Longitudinal costs
-
+  // 与参考值的偏移代价(希望接近参考值)
   double lon_objective_cost =
       LonObjectiveCost(lon_trajectory, planning_target, reference_s_dot_);
-
+  // 舒适性相关，加加速度代价(希望较小的加加速度)
   double lon_jerk_cost = LonComfortCost(lon_trajectory);
-
+  // 与障碍物(ST图中)的距离代价(希望远离障碍物)
   double lon_collision_cost = LonCollisionCost(lon_trajectory);
-
+  // 向心加速度(希望较小的向心加速度)
   double centripetal_acc_cost = CentripetalAccelerationCost(lon_trajectory);
 
   // decides the longitudinal evaluation horizon for lateral trajectories.
+  /**
+   * DEFINE_double(speed_lon_decision_horizon, 200.0,
+              "Longitudinal horizon for speed decision making (meter)");
+   * **/
   double evaluation_horizon =
       std::min(FLAGS_speed_lon_decision_horizon,
                lon_trajectory->Evaluate(0, lon_trajectory->ParamLength()));
   std::vector<double> s_values;
+  /**
+   * DEFINE_double(trajectory_space_resolution, 1.0,
+              "Trajectory space resolution in planning");
+   * **/
+  // 沿着s等间距(1.0米)采样
   for (double s = 0.0; s < evaluation_horizon;
        s += FLAGS_trajectory_space_resolution) {
     s_values.emplace_back(s);
   }
 
   // Lateral costs
+  // 横向偏移参考线代价(希望规划的轨迹距离参考线较近)
   double lat_offset_cost = LatOffsetCost(lat_trajectory, s_values);
-
+  // 舒适性相关,dddl(l的三阶导数)
   double lat_comfort_cost = LatComfortCost(lon_trajectory, lat_trajectory);
 
   if (cost_components != nullptr) {
@@ -193,6 +200,19 @@ double TrajectoryEvaluator::Evaluate(
     cost_components->emplace_back(lat_offset_cost);
   }
 
+
+  /**
+   * DEFINE_double(weight_lon_objective, 10.0, 
+   *          "Weight of longitudinal travel cost");
+   * DEFINE_double(weight_lon_jerk, 1.0, "Weight of longitudinal jerk cost");
+     DEFINE_double(weight_lon_collision, 5.0,
+              "Weight of longitudinal collision cost");
+     DEFINE_double(weight_centripetal_acceleration, 1.5,
+              "Weight of centripetal acceleration");   
+     DEFINE_double(weight_lat_offset, 2.0, "Weight of lateral offset cost");
+     DEFINE_double(weight_lat_comfort, 10.0, "Weight of lateral comfort cost");   
+   * 
+   * **/
   return lon_objective_cost * FLAGS_weight_lon_objective +
          lon_jerk_cost * FLAGS_weight_lon_jerk +
          lon_collision_cost * FLAGS_weight_lon_collision +
@@ -209,6 +229,13 @@ double TrajectoryEvaluator::LatOffsetCost(
   double cost_abs_sum = 0.0;
   for (const auto& s : s_values) {
     double lat_offset = lat_trajectory->Evaluate(0, s);
+    /**
+     * DEFINE_double(lat_offset_bound, 3.0, "The bound of lateral offset");
+     * DEFINE_double(weight_opposite_side_offset, 10.0,
+              "Weight of opposite side lateral offset cost");
+       DEFINE_double(weight_same_side_offset, 1.0,
+              "Weight of same side lateral offset cost");       
+     * **/
     double cost = lat_offset / FLAGS_lat_offset_bound;
     if (lat_offset * lat_offset_start < 0.0) {
       cost_sqr_sum += cost * cost * FLAGS_weight_opposite_side_offset;
@@ -225,6 +252,12 @@ double TrajectoryEvaluator::LatComfortCost(
     const PtrTrajectory1d& lon_trajectory,
     const PtrTrajectory1d& lat_trajectory) const {
   double max_cost = 0.0;
+  
+  /**
+   * DEFINE_double(trajectory_time_length, 8.0, "Trajectory time length");
+   * DEFINE_double(trajectory_time_resolution, 0.1,
+              "Trajectory time resolution in planning");
+   * **/
   for (double t = 0.0; t < FLAGS_trajectory_time_length;
        t += FLAGS_trajectory_time_resolution) {
     double s = lon_trajectory->Evaluate(0, t);

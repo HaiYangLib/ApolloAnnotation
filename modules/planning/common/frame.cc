@@ -540,6 +540,7 @@ void Frame::ResetPadMsgDrivingAction() {
   pad_msg_driving_action_ = DrivingAction::NONE;
 }
 
+// 找到一条代价最小的ReferenceLineInfo
 const ReferenceLineInfo *Frame::FindDriveReferenceLineInfo() {
   double min_cost = std::numeric_limits<double>::infinity();
   drive_reference_line_info_ = nullptr;

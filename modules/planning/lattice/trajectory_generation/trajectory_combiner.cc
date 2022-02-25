@@ -30,6 +30,10 @@ using apollo::common::TrajectoryPoint;
 using apollo::common::math::CartesianFrenetConverter;
 using apollo::common::math::PathMatcher;
 
+/**
+ * TrajectoryPoint: modules/common/proto/pnc_point.proto
+ * class DiscretizedTrajectory : public std::vector<common::TrajectoryPoint>
+ * **/
 DiscretizedTrajectory TrajectoryCombiner::Combine(
     const std::vector<PathPoint>& reference_line, const Curve1d& lon_trajectory,
     const Curve1d& lat_trajectory, const double init_relative_time) {
@@ -46,14 +50,18 @@ DiscretizedTrajectory TrajectoryCombiner::Combine(
     // linear extrapolation is handled internally in LatticeTrajectory1d;
     // no worry about t_param > lon_trajectory.ParamLength() situation
     double s = lon_trajectory.Evaluate(0, t_param);
+    
     if (last_s > 0.0) {
       s = std::max(last_s, s);
     }
+
     last_s = s;
 
     double s_dot =
         std::max(FLAGS_numerical_epsilon, lon_trajectory.Evaluate(1, t_param));
+
     double s_ddot = lon_trajectory.Evaluate(2, t_param);
+
     if (s > s_ref_max) {
       break;
     }
@@ -77,12 +85,14 @@ DiscretizedTrajectory TrajectoryCombiner::Combine(
     const double rs = matched_ref_point.s();
     const double rx = matched_ref_point.x();
     const double ry = matched_ref_point.y();
+
     const double rtheta = matched_ref_point.theta();
     const double rkappa = matched_ref_point.kappa();
     const double rdkappa = matched_ref_point.dkappa();
 
     std::array<double, 3> s_conditions = {rs, s_dot, s_ddot};
     std::array<double, 3> d_conditions = {d, d_prime, d_pprime};
+
     CartesianFrenetConverter::frenet_to_cartesian(
         rs, rx, ry, rtheta, rkappa, rdkappa, s_conditions, d_conditions, &x, &y,
         &theta, &kappa, &v, &a);
@@ -110,6 +120,7 @@ DiscretizedTrajectory TrajectoryCombiner::Combine(
 
     prev_trajectory_point = trajectory_point.path_point();
   }
+
   return combined_trajectory;
 }
 

@@ -21,7 +21,6 @@
 #include "cyber/time/clock.h"
 #include "modules/common/adapters/adapter_gflags.h"
 #include "modules/common/util/message_util.h"
-
 #include "modules/prediction/common/feature_output.h"
 #include "modules/prediction/common/junction_analyzer.h"
 #include "modules/prediction/common/prediction_gflags.h"
@@ -73,6 +72,9 @@ bool PredictionComponent::Init() {
   scenario_manager_.reset(new ScenarioManager());
 
   PredictionConf prediction_conf;
+  /**
+   * modules/prediction/conf/prediction_conf.pb.txt
+   * **/
   if (!ComponentBase::GetProtoConfig(&prediction_conf)) {
     AERROR << "Unable to load prediction conf file: "
            << ComponentBase::ConfigFilePath();
@@ -86,33 +88,39 @@ bool PredictionComponent::Init() {
     return false;
   }
 
+  // planning_trajectory_topic: "/apollo/planning"
   planning_reader_ = node_->CreateReader<ADCTrajectory>(
       prediction_conf.topic_conf().planning_trajectory_topic(), nullptr);
-
+  // localization_topic: "/apollo/localization/pose"
   localization_reader_ =
       node_->CreateReader<localization::LocalizationEstimate>(
           prediction_conf.topic_conf().localization_topic(), nullptr);
-
+  // storytelling_topic: "/apollo/storytelling"
   storytelling_reader_ = node_->CreateReader<storytelling::Stories>(
       prediction_conf.topic_conf().storytelling_topic(), nullptr);
 
+  // prediction_topic: "/apollo/prediction"
   prediction_writer_ = node_->CreateWriter<PredictionObstacles>(
       prediction_conf.topic_conf().prediction_topic());
-
+  // container_topic_name: "/apollo/prediction/container"
   container_writer_ = node_->CreateWriter<SubmoduleOutput>(
       prediction_conf.topic_conf().container_topic_name());
-
+  // adccontainer_topic_name: "/apollo/prediction/adccontainer"
   adc_container_writer_ = node_->CreateWriter<ADCTrajectoryContainer>(
       prediction_conf.topic_conf().adccontainer_topic_name());
-
+  // perception_obstacles_topic_name: "/apollo/prediction/perception_obstacles"
   perception_obstacles_writer_ = node_->CreateWriter<PerceptionObstacles>(
       prediction_conf.topic_conf().perception_obstacles_topic_name());
 
   return true;
 }
 
+/**
+ *  channel: "/apollo/perception/obstacles"
+ * **/
 bool PredictionComponent::Proc(
     const std::shared_ptr<PerceptionObstacles>& perception_obstacles) {
+  // DEFINE_bool(use_lego, false, "If use lego architecture");    
   if (FLAGS_use_lego) {
     return ContainerSubmoduleProcess(perception_obstacles);
   }
@@ -183,6 +191,10 @@ bool PredictionComponent::PredictionEndToEndProc(
   }
 
   // Update relative map if needed
+  /**
+   * DEFINE_bool(use_navigation_mode, false,
+            "Use relative position in navigation mode");
+   * **/
   if (FLAGS_use_navigation_mode && !PredictionMap::Ready()) {
     AERROR << "Relative map is empty.";
     return false;
@@ -199,8 +211,10 @@ bool PredictionComponent::PredictionEndToEndProc(
     AERROR << "Prediction: cannot receive any localization message.";
     return false;
   }
+
   MessageProcess::OnLocalization(container_manager_.get(),
                                  *ptr_localization_msg);
+
   auto end_time2 = std::chrono::system_clock::now();
   std::chrono::duration<double> diff = end_time2 - end_time1;
   ADEBUG << "Time for updating PoseContainer: " << diff.count() * 1000
@@ -222,6 +236,7 @@ bool PredictionComponent::PredictionEndToEndProc(
   if (ptr_trajectory_msg != nullptr) {
     MessageProcess::OnPlanning(container_manager_.get(), *ptr_trajectory_msg);
   }
+  
   auto end_time3 = std::chrono::system_clock::now();
   diff = end_time3 - end_time2;
   ADEBUG << "Time for updating ADCTrajectoryContainer: " << diff.count() * 1000

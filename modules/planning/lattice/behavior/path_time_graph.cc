@@ -242,6 +242,9 @@ bool PathTimeGraph::GetPathTimeObstacle(const std::string& obstacle_id,
   return true;
 }
 
+/**
+ * 得到所有障碍物(符合t > pt_obstacle.max_t() || t < pt_obstacle.min_t())
+ * **/ 
 std::vector<std::pair<double, double>> PathTimeGraph::GetPathBlockingIntervals(
     const double t) const {
   ACHECK(time_range_.first <= t && t <= time_range_.second);
@@ -316,7 +319,7 @@ std::vector<STPoint> PathTimeGraph::GetObstacleSurroundingPoints(
   }
 
   double time_gap = t1 - t0;
-  //DEFINE_double(numerical_epsilon, 1e-6, "Epsilon in lattice planner.");
+  // DEFINE_double(numerical_epsilon, 1e-6, "Epsilon in lattice planner.");
   ACHECK(time_gap > -FLAGS_numerical_epsilon);
   time_gap = std::fabs(time_gap);
 

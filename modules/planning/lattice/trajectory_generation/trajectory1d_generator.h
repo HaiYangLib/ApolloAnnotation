@@ -87,6 +87,7 @@ class Trajectory1dGenerator {
   std::shared_ptr<PathTimeGraph> ptr_path_time_graph_;
 };
 
+// 生成四次多项式
 template <>
 inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<4>(
     const std::array<double, 3>& init_state,
@@ -112,6 +113,7 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<4>(
   
 }
 
+// 生成五次多项式
 template <>
 inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<5>(
     const std::array<double, 3>& init_state,

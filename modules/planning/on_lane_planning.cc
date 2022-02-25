@@ -462,6 +462,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     return;
   }
 
+  // 步骤11.根据交通规则产生一些plan target如停止点，虚拟障碍物，巡航速度等
   for (auto& ref_line_info : *frame_->mutable_reference_line_info()) {
     TrafficDecider traffic_decider;
     traffic_decider.Init(traffic_rule_configs_);
@@ -474,6 +475,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     }
   }
 
+  // 步骤12. 进行规划
   status = Plan(start_timestamp, stitching_trajectory, ptr_trajectory_pb);
 
   for (const auto& p : ptr_trajectory_pb->trajectory_point()) {
@@ -670,6 +672,7 @@ Status OnLanePlanning::Plan(
                            ptr_debug);
     }
   } else {
+    // 找到一条代价最小的ReferenceLineInfo
     const auto* best_ref_info = frame_->FindDriveReferenceLineInfo();
     const auto* target_ref_info = frame_->FindTargetReferenceLineInfo();
     if (!best_ref_info) {

@@ -42,6 +42,8 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
       break;
     }
     double lon_v = p.v();
+    // DEFINE_double(speed_lower_bound, -0.1, "The lowest speed allowed.");
+    // DEFINE_double(speed_upper_bound, 40.0, "The highest speed allowed.");
     if (!WithinRange(lon_v, FLAGS_speed_lower_bound, FLAGS_speed_upper_bound)) {
       ADEBUG << "Velocity at relative time " << t
              << " exceeds bound, value: " << lon_v << ", bound ["
@@ -51,6 +53,12 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     }
 
     double lon_a = p.a();
+    /**
+     * DEFINE_double(longitudinal_acceleration_lower_bound, -6.0,
+              "The lowest longitudinal acceleration allowed.");
+       DEFINE_double(longitudinal_acceleration_upper_bound, 4.0,
+              "The highest longitudinal acceleration allowed.");     
+     * **/
     if (!WithinRange(lon_a, FLAGS_longitudinal_acceleration_lower_bound,
                      FLAGS_longitudinal_acceleration_upper_bound)) {
       ADEBUG << "Longitudinal acceleration at relative time " << t
@@ -61,6 +69,10 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     }
 
     double kappa = p.path_point().kappa();
+    /**
+     * DEFINE_double(kappa_bound, 0.1979, 
+     *    "The bound for trajectory curvature");
+     * **/
     if (!WithinRange(kappa, -FLAGS_kappa_bound, FLAGS_kappa_bound)) {
       ADEBUG << "Kappa at relative time " << t
              << " exceeds bound, value: " << kappa << ", bound ["
@@ -82,6 +94,12 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     double dt = p1.relative_time() - p0.relative_time();
     double d_lon_a = p1.a() - p0.a();
     double lon_jerk = d_lon_a / dt;
+    /**
+     * DEFINE_double(longitudinal_jerk_lower_bound, -4.0,
+              "The lower bound of longitudinal jerk.");
+       DEFINE_double(longitudinal_jerk_upper_bound, 2.0,
+              "The upper bound of longitudinal jerk.");
+     * **/
     if (!WithinRange(lon_jerk, FLAGS_longitudinal_jerk_lower_bound,
                      FLAGS_longitudinal_jerk_upper_bound)) {
       ADEBUG << "Longitudinal jerk at relative time " << t
@@ -92,6 +110,10 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     }
 
     double lat_a = p1.v() * p1.v() * p1.path_point().kappa();
+    /**
+     * DEFINE_double(lateral_acceleration_bound, 4.0,
+              "Bound of lateral acceleration; symmetric for left and right");
+     * **/
     if (!WithinRange(lat_a, -FLAGS_lateral_acceleration_bound,
                      FLAGS_lateral_acceleration_bound)) {
       ADEBUG << "Lateral acceleration at relative time " << t
