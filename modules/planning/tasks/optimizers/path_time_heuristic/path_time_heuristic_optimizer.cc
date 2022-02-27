@@ -35,6 +35,7 @@ using apollo::common::Status;
 PathTimeHeuristicOptimizer::PathTimeHeuristicOptimizer(const TaskConfig& config)
     : SpeedOptimizer(config) {
   ACHECK(config.has_speed_heuristic_optimizer_config());
+  // modules/planning/conf/planning_config.pb.txt 
   speed_heuristic_optimizer_config_ = config.speed_heuristic_optimizer_config();
 }
 
@@ -75,6 +76,7 @@ Status PathTimeHeuristicOptimizer::Process(
                                      ->mutable_st_graph_debug());
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
+
   RecordDebugInfo(
       *speed_data,
       reference_line_info_->mutable_st_graph_data()->mutable_st_graph_debug());
