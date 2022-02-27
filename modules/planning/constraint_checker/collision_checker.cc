@@ -91,6 +91,9 @@ bool CollisionChecker::InCollision(
   double ego_length = vehicle_config.vehicle_param().length();
   double ego_width = vehicle_config.vehicle_param().width();
 
+  // discretized_trajectory的点的时间与predicted_bounding_rectangles_的时间间隔是一样的,
+  // 都为 FLAGS_trajectory_time_resolution=0.1s
+  // 所以++i相当于时间推进了0.1s
   for (size_t i = 0; i < discretized_trajectory.NumOfPoints(); ++i) {
     const auto& trajectory_point =
         discretized_trajectory.TrajectoryPointAt(static_cast<std::uint32_t>(i));
@@ -103,7 +106,7 @@ bool CollisionChecker::InCollision(
     Vec2d shift_vec{shift_distance * std::cos(ego_theta),
                     shift_distance * std::sin(ego_theta)};
     ego_box.Shift(shift_vec);
-
+    // 在同一个时刻下ego_box与该时刻所有的障碍物box是否发生重叠
     for (const auto& obstacle_box : predicted_bounding_rectangles_[i]) {
       if (ego_box.HasOverlap(obstacle_box)) {
         return true;
@@ -112,7 +115,7 @@ bool CollisionChecker::InCollision(
   }
   return false;
 }
-
+// 选择感兴趣的障碍物，并为每个障碍物的在每个时间点构建边界框
 void CollisionChecker::BuildPredictedEnvironment(
     const std::vector<const Obstacle*>& obstacles, const double ego_vehicle_s,
     const double ego_vehicle_d,
@@ -121,8 +124,10 @@ void CollisionChecker::BuildPredictedEnvironment(
 
   // If the ego vehicle is in lane,
   // then, ignore all obstacles from the same lane.
+  // 如果ego车辆在车道上，则忽略ego车辆后面同一车道上的所有障碍物。
   bool ego_vehicle_in_lane = IsEgoVehicleInLane(ego_vehicle_s, ego_vehicle_d);
   std::vector<const Obstacle*> obstacles_considered;
+  // 1.选择感兴趣的障碍物，
   for (const Obstacle* obstacle : obstacles) {
     if (obstacle->IsVirtual()) {
       continue;
@@ -138,6 +143,8 @@ void CollisionChecker::BuildPredictedEnvironment(
   }
 
   double relative_time = 0.0;
+
+  // 2.为每个障碍物的在每个时间点构建边界框
   while (relative_time < FLAGS_trajectory_time_length) {
     std::vector<Box2d> predicted_env;
     for (const Obstacle* obstacle : obstacles_considered) {
@@ -145,11 +152,15 @@ void CollisionChecker::BuildPredictedEnvironment(
       // Obstacle::GetPointAtTime has handled this case.
       TrajectoryPoint point = obstacle->GetPointAtTime(relative_time);
       Box2d box = obstacle->GetBoundingBox(point);
+      // 出于安全距离的考虑
       box.LongitudinalExtend(2.0 * FLAGS_lon_collision_buffer);
       box.LateralExtend(2.0 * FLAGS_lat_collision_buffer);
+
       predicted_env.push_back(std::move(box));
     }
+
     predicted_bounding_rectangles_.push_back(std::move(predicted_env));
+    // 0.1s
     relative_time += FLAGS_trajectory_time_resolution;
   }
 }

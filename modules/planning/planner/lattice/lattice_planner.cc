@@ -94,6 +94,7 @@ void ComputeInitFrenetState(const PathPoint& matched_point,
                             std::array<double, 3>* ptr_d) {
   /**
    * modules/common/math/cartesian_frenet_conversion.h
+   * 函数声明：
    * static void cartesian_to_frenet(const double rs, const double rx,
                                   const double ry, const double rtheta,
                                   const double rkappa, const double rdkappa,
@@ -269,7 +270,8 @@ Status LatticePlanner::PlanOnReferenceLine(
          << "  number_lat_traj = " << lat_trajectory1d_bundle.size();
 
   // Get instance of collision checker and constraint checker
-  CollisionChecker collision_checker(frame->obstacles(), init_s[0], init_d[0],
+  CollisionChe
+  cker collision_checker(frame->obstacles(), init_s[0], init_d[0],
                                      *ptr_reference_line, reference_line_info,
                                      ptr_path_time_graph);
 
@@ -289,17 +291,20 @@ Status LatticePlanner::PlanOnReferenceLine(
   size_t num_lattice_traj = 0;
 
   while (trajectory_evaluator.has_more_trajectory_pairs()) {
+    // 获取代价最小的一组轨迹，将横,纵向采样生成的轨迹合并
     double trajectory_pair_cost =
         trajectory_evaluator.top_trajectory_pair_cost();
     auto trajectory_pair = trajectory_evaluator.next_top_trajectory_pair();
 
     // combine two 1d trajectories to one 2d trajectory
+    // 将横,纵向采样生成的轨迹合并成一个 DiscretizedTrajectory
     auto combined_trajectory = TrajectoryCombiner::Combine(
         *ptr_reference_line, *trajectory_pair.first, *trajectory_pair.second,
         planning_init_point.relative_time());
 
     // check longitudinal and lateral acceleration
     // considering trajectory curvatures
+    // 检查合并后的轨迹是否有效
     auto result = ConstraintChecker::ValidTrajectory(combined_trajectory);
     if (result != ConstraintChecker::Result::VALID) {
       ++combined_constraint_failure_count;
@@ -332,6 +337,7 @@ Status LatticePlanner::PlanOnReferenceLine(
     }
 
     // check collision with other obstacles
+    // 检查合并后的轨迹是否与其他障碍物碰撞
     if (collision_checker.InCollision(combined_trajectory)) {
       ++collision_failure_count;
       continue;

@@ -23,22 +23,33 @@
 namespace apollo {
 namespace planning {
 
+/**
+ * 该函数用来构造出二次规划问题的框架，再调用osqp库进行求解，从而求出最优path。
+ * 需要注意的是，二次规划问题的求解方式有许多种，包括拉格朗日法，梯度下降等等，
+ * Apollo 采用的osqp这个第三方库
+ * **/
 bool LateralOSQPOptimizer::optimize(
     const std::array<double, 3>& d_state, const double delta_s,
     const std::vector<std::pair<double, double>>& d_bounds) {
+  // 构造出P矩阵即代价函数
   std::vector<c_float> P_data;
   std::vector<c_int> P_indices;
   std::vector<c_int> P_indptr;
+  // 用于构造代价函数即P矩阵
   CalculateKernel(d_bounds, &P_data, &P_indices, &P_indptr);
+
   delta_s_ = delta_s;
   const int num_var = static_cast<int>(d_bounds.size());
-  const int kNumParam = 3 * static_cast<int>(d_bounds.size());
+  const int kNumParam = 3 * static_cast<int>(d_bounds.size());  // l,dl,ddl
+  // kNumConstraint=6*d_bounds.size()
   const int kNumConstraint = kNumParam + 3 * (num_var - 1) + 3;
+
+  // 构建下边界lower_bounds和upper_bounds
   c_float lower_bounds[kNumConstraint];
   c_float upper_bounds[kNumConstraint];
 
-  const int prime_offset = num_var;
-  const int pprime_offset = 2 * num_var;
+  const int prime_offset = num_var;       // dl
+  const int pprime_offset = 2 * num_var;  // ddl
 
   std::vector<std::vector<std::pair<c_int, c_float>>> columns;
   columns.resize(kNumParam);
@@ -46,10 +57,15 @@ bool LateralOSQPOptimizer::optimize(
   int constraint_index = 0;
 
   // d_i+1'' - d_i''
+  // 最大转向率
   for (int i = 0; i + 1 < num_var; ++i) {
     columns[pprime_offset + i].emplace_back(constraint_index, -1.0);
     columns[pprime_offset + i + 1].emplace_back(constraint_index, 1.0);
 
+    /**
+     * DEFINE_double(lateral_third_order_derivative_max, 0.1,
+              "the maximal allowance for lateral third order derivative");
+     * **/
     lower_bounds[constraint_index] =
         -FLAGS_lateral_third_order_derivative_max * delta_s_;
     upper_bounds[constraint_index] =
@@ -86,21 +102,28 @@ bool LateralOSQPOptimizer::optimize(
   }
 
   columns[0].emplace_back(constraint_index, 1.0);
+
+  // 起始点约束
   lower_bounds[constraint_index] = d_state[0];
   upper_bounds[constraint_index] = d_state[0];
   ++constraint_index;
 
   columns[prime_offset].emplace_back(constraint_index, 1.0);
+
   lower_bounds[constraint_index] = d_state[1];
   upper_bounds[constraint_index] = d_state[1];
   ++constraint_index;
 
   columns[pprime_offset].emplace_back(constraint_index, 1.0);
+
   lower_bounds[constraint_index] = d_state[2];
   upper_bounds[constraint_index] = d_state[2];
   ++constraint_index;
 
   const double LARGE_VALUE = 2.0;
+
+  // num_var = static_cast<int>(d_bounds.size());
+  // kNumParam = 3 * static_cast<int>(d_bounds.size()); // l,dl,ddl
   for (int i = 0; i < kNumParam; ++i) {
     columns[i].emplace_back(constraint_index, 1.0);
     if (i < num_var) {
@@ -120,6 +143,7 @@ bool LateralOSQPOptimizer::optimize(
   std::vector<c_int> A_indices;
   std::vector<c_int> A_indptr;
   int ind_p = 0;
+
   for (int j = 0; j < kNumParam; ++j) {
     A_indptr.push_back(ind_p);
     for (const auto& row_data_pair : columns[j]) {
@@ -128,12 +152,20 @@ bool LateralOSQPOptimizer::optimize(
       ++ind_p;
     }
   }
+
   A_indptr.push_back(ind_p);
 
   // offset
+  // 构建q向量
   double q[kNumParam];
   for (int i = 0; i < kNumParam; ++i) {
     if (i < num_var) {
+      /**
+       *    DEFINE_double(
+         weight_lateral_obstacle_distance, 0.0,
+         "weight for lateral obstacle distance in lateral trajectory
+       optimization");
+       * **/
       q[i] = -2.0 * FLAGS_weight_lateral_obstacle_distance *
              (d_bounds[i].first + d_bounds[i].second);
     } else {
@@ -176,10 +208,11 @@ bool LateralOSQPOptimizer::optimize(
 
   // extract primal results
   for (int i = 0; i < num_var; ++i) {
-    opt_d_.push_back(work->solution->x[i]);
-    opt_d_prime_.push_back(work->solution->x[i + num_var]);
-    opt_d_pprime_.push_back(work->solution->x[i + 2 * num_var]);
+    opt_d_.push_back(work->solution->x[i]);                       // l
+    opt_d_prime_.push_back(work->solution->x[i + num_var]);       // dl
+    opt_d_pprime_.push_back(work->solution->x[i + 2 * num_var]);  // ddl
   }
+
   opt_d_prime_[num_var - 1] = 0.0;
   opt_d_pprime_[num_var - 1] = 0.0;
 
@@ -193,6 +226,7 @@ bool LateralOSQPOptimizer::optimize(
   return true;
 }
 
+// CalculateKnernel 用于构造代价函数即P矩阵
 void LateralOSQPOptimizer::CalculateKernel(
     const std::vector<std::pair<double, double>>& d_bounds,
     std::vector<c_float>* P_data, std::vector<c_int>* P_indices,
@@ -201,19 +235,43 @@ void LateralOSQPOptimizer::CalculateKernel(
   P_data->resize(kNumParam);
   P_indices->resize(kNumParam);
   P_indptr->resize(kNumParam + 1);
-
+  // 可以注意到每个元素前都乘以了2，这是为了和二次优化问题的一般形式中的1/2进行抵消的。
   for (int i = 0; i < kNumParam; ++i) {
     if (i < static_cast<int>(d_bounds.size())) {
+      /**
+       * DEFINE_double(weight_lateral_offset, 1.0,
+              "weight for lateral offset "
+              "in lateral trajectory optimization");
+        DEFINE_double(
+         weight_lateral_obstacle_distance, 0.0,
+         "weight for lateral obstacle distance in lateral trajectory
+       optimization");
+
+       * **/
+      // l项权重
       P_data->at(i) = 2.0 * FLAGS_weight_lateral_offset +
                       2.0 * FLAGS_weight_lateral_obstacle_distance;
     } else if (i < 2 * static_cast<int>(d_bounds.size())) {
+      /**
+       * DEFINE_double(weight_lateral_derivative, 500.0,
+              "weight for lateral derivative "
+              "in lateral trajectory optimization");
+       * **/
+      // dl权重
       P_data->at(i) = 2.0 * FLAGS_weight_lateral_derivative;
     } else {
+      /**
+       * DEFINE_double(weight_lateral_second_order_derivative, 1000.0,
+              "weight for lateral second order derivative "
+              "in lateral trajectory optimization");
+       * **/
+      // ddl权重
       P_data->at(i) = 2.0 * FLAGS_weight_lateral_second_order_derivative;
     }
     P_indices->at(i) = i;
     P_indptr->at(i) = i;
   }
+
   P_indptr->at(kNumParam) = kNumParam;
   CHECK_EQ(P_data->size(), P_indices->size());
 }
