@@ -64,6 +64,7 @@ class GriddedPathTimeGraph {
     uint32_t c;
     uint32_t r;
   };
+  
   void CalculateCostAt(const std::shared_ptr<StGraphMessage>& msg);
 
   double CalculateEdgeCost(const STPoint& first, const STPoint& second,
