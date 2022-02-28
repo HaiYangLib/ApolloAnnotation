@@ -139,4 +139,6 @@ build/
 .vscode/
 
 *.zip
+*.tar
+*.tar.gz
 

@@ -73,14 +73,19 @@ GriddedPathTimeGraph::GriddedPathTimeGraph(
       init_point_(init_point),
       dp_st_cost_(dp_config, st_graph_data_.total_time_by_conf(),
                   st_graph_data_.path_length(), obstacles,
-                  st_graph_data_.st_drivable_boundary(), init_point_) {
+                  st_graph_data_.st_drivable_boundary(), init_point_) {                 
   total_length_t_ = st_graph_data_.total_time_by_conf();
+  // unit_t: 1.0
   unit_t_ = gridded_path_time_graph_config_.unit_t();
   total_length_s_ = st_graph_data_.path_length();
+  // dense_unit_s: 0.1
   dense_unit_s_ = gridded_path_time_graph_config_.dense_unit_s();
+  // sparse_unit_s: 1.0
   sparse_unit_s_ = gridded_path_time_graph_config_.sparse_unit_s();
+  // dense_dimension_s: 101
   dense_dimension_s_ = gridded_path_time_graph_config_.dense_dimension_s();
   // Safety approach preventing unreachable acceleration/deceleration
+  // max_acceleration: 2.0
   max_acceleration_ =
       std::min(std::abs(vehicle_param_.max_acceleration()),
                std::abs(gridded_path_time_graph_config_.max_acceleration()));
@@ -152,6 +157,7 @@ Status GriddedPathTimeGraph::InitCostTable() {
   }
 
   // Sanity check on s dimension setting
+  // 101
   if (dense_dimension_s_ < 1) {
     const std::string msg = "dense_dimension_s is at least 1.";
     AERROR << msg;
@@ -162,18 +168,22 @@ Status GriddedPathTimeGraph::InitCostTable() {
                      total_length_t_ / static_cast<double>(unit_t_))) +
                  1;
 
+  // dense_unit_s_:0.1
   double sparse_length_s =
       total_length_s_ -
       static_cast<double>(dense_dimension_s_ - 1) * dense_unit_s_;
+  // sparse_unit_s_:1.0
   sparse_dimension_s_ =
       sparse_length_s > std::numeric_limits<double>::epsilon()
           ? static_cast<uint32_t>(std::ceil(sparse_length_s / sparse_unit_s_))
           : 0;
+
   dense_dimension_s_ =
       sparse_length_s > std::numeric_limits<double>::epsilon()
           ? dense_dimension_s_
           : static_cast<uint32_t>(std::ceil(total_length_s_ / dense_unit_s_)) +
                 1;
+
   dimension_s_ = dense_dimension_s_ + sparse_dimension_s_;
 
   // Sanity Check
@@ -187,6 +197,14 @@ Status GriddedPathTimeGraph::InitCostTable() {
       dimension_t_, std::vector<StGraphPoint>(dimension_s_, StGraphPoint()));
 
   double curr_t = 0.0;
+  
+  /**
+   * 初始化cost_table
+   * s的维度和规划出path的长度一致，t的维度目前为8s。unit_t设置为1s，unit_s则分为两部分，
+   * s值较小的区域unit_s为0.1， s值较大的区域unit_s为1.0。
+   * 这种构建方法的目的是因为距离自车位置比较近的范围需要进行精细考虑，而较远的地方则不需这么精细，
+   * 提高算法效率
+   * **/
   for (uint32_t i = 0; i < cost_table_.size(); ++i, curr_t += unit_t_) {
     auto& cost_table_i = cost_table_[i];
     double curr_s = 0.0;
@@ -207,6 +225,7 @@ Status GriddedPathTimeGraph::InitCostTable() {
   for (uint32_t i = 0; i < cost_table_0.size(); ++i) {
     spatial_distance_by_index_[i] = cost_table_0[i].point().s();
   }
+
   return Status::OK();
 }
 
@@ -236,10 +255,12 @@ Status GriddedPathTimeGraph::CalculateTotalCost() {
 
     int count = static_cast<int>(next_highest_row) -
                 static_cast<int>(next_lowest_row) + 1;
+
     if (count > 0) {
       std::vector<std::future<void>> results;
       for (size_t r = next_lowest_row; r <= next_highest_row; ++r) {
         auto msg = std::make_shared<StGraphMessage>(c, r);
+        // false
         if (FLAGS_enable_multi_thread_in_dp_st_graph) {
           results.push_back(
               cyber::Async(&GriddedPathTimeGraph::CalculateCostAt, this, msg));
@@ -247,6 +268,7 @@ Status GriddedPathTimeGraph::CalculateTotalCost() {
           CalculateCostAt(msg);
         }
       }
+      // false
       if (FLAGS_enable_multi_thread_in_dp_st_graph) {
         for (auto& result : results) {
           result.get();
@@ -320,12 +342,12 @@ void GriddedPathTimeGraph::CalculateCostAt(
   const uint32_t c = msg->c;
   const uint32_t r = msg->r;
   auto& cost_cr = cost_table_[c][r];
-
+  // 障碍物代价
   cost_cr.SetObstacleCost(dp_st_cost_.GetObstacleCost(cost_cr));
   if (cost_cr.obstacle_cost() > std::numeric_limits<double>::max()) {
     return;
   }
-
+  // 距离终点代价
   cost_cr.SetSpatialPotentialCost(dp_st_cost_.GetSpatialPotentialCost(cost_cr));
 
   const auto& cost_init = cost_table_[0][0];
@@ -339,7 +361,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
   const double speed_limit = speed_limit_by_index_[r];
   const double cruise_speed = st_graph_data_.cruise_speed();
   // The mininal s to model as constant acceleration formula
-  // default: 0.25 * 7 = 1.75 m
+  // 0.1*
   const double min_s_consider_speed = dense_unit_s_ * dimension_t_;
 
   if (c == 1) {
@@ -358,6 +380,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
                                 cost_init)) {
       return;
     }
+    
     cost_cr.SetTotalCost(
         cost_cr.obstacle_cost() + cost_cr.spatial_potential_cost() +
         cost_init.total_cost() +
@@ -381,6 +404,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
     r_low = static_cast<uint32_t>(
         std::distance(spatial_distance_by_index_.begin(), pre_lowest_itr));
   }
+
   const uint32_t r_pre_size = r - r_low + 1;
   const auto& pre_col = cost_table_[c - 1];
   double curr_speed_limit = speed_limit;
@@ -403,6 +427,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
           ((cost_cr.point().s() - pre_col[r_pre].point().s()) / unit_t_ -
            pre_col[r_pre].GetOptimalSpeed()) /
           unit_t_;
+
       if (curr_a < max_deceleration_ || curr_a > max_acceleration_) {
         continue;
       }
@@ -419,6 +444,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
                                   pre_col[r_pre])) {
         continue;
       }
+
       curr_speed_limit =
           std::fmin(curr_speed_limit, speed_limit_by_index_[r_pre]);
       const double cost = cost_cr.obstacle_cost() +
