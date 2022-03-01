@@ -13,6 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+/******************************************************************************
+* AnnotationAuthor  : HaiYang
+* Email   : hanhy20@mails.jlu.edu.cn
+* Desc    : annotation for apollo
+******************************************************************************/
+
 
 /**
  * @file gridded_path_time_graph.cc
@@ -221,6 +227,7 @@ Status GriddedPathTimeGraph::InitCostTable() {
   }
 
   const auto& cost_table_0 = cost_table_[0];
+  // 创建一个关于距离s的索引表
   spatial_distance_by_index_ = std::vector<double>(cost_table_0.size(), 0.0);
   for (uint32_t i = 0; i < cost_table_0.size(); ++i) {
     spatial_distance_by_index_[i] = cost_table_0[i].point().s();
@@ -286,6 +293,7 @@ Status GriddedPathTimeGraph::CalculateTotalCost() {
         lowest_row = std::min(lowest_row, l_r);
       }
     }
+    
     next_highest_row = highest_row;
     next_lowest_row = lowest_row;
   }
@@ -365,6 +373,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
   const double min_s_consider_speed = dense_unit_s_ * dimension_t_;
 
   if (c == 1) {
+    // 
     const double acc =
         2 * (cost_cr.point().s() / unit_t_ - init_point_.v()) / unit_t_;
     if (acc < max_deceleration_ || acc > max_acceleration_) {
@@ -391,6 +400,11 @@ void GriddedPathTimeGraph::CalculateCostAt(
   }
 
   static constexpr double kSpeedRangeBuffer = 0.20;
+  /**
+   * DEFINE_double(planning_upper_speed_limit, 31.3,
+              "Maximum speed (m/s) in planning.");
+   * **/
+  // 
   const double pre_lowest_s =
       cost_cr.point().s() -
       FLAGS_planning_upper_speed_limit * (1 + kSpeedRangeBuffer) * unit_t_;
@@ -478,6 +492,7 @@ void GriddedPathTimeGraph::CalculateCostAt(
         ((cost_cr.point().s() - pre_col[r_pre].point().s()) / unit_t_ -
          pre_col[r_pre].GetOptimalSpeed()) /
         unit_t_;
+
     if (curr_a > max_acceleration_ || curr_a < max_deceleration_) {
       continue;
     }
@@ -501,10 +516,12 @@ void GriddedPathTimeGraph::CalculateCostAt(
     if (!prepre_graph_point.pre_point()) {
       continue;
     }
+    
     const STPoint& triple_pre_point = prepre_graph_point.pre_point()->point();
     const STPoint& prepre_point = prepre_graph_point.point();
     const STPoint& pre_point = pre_col[r_pre].point();
     const STPoint& curr_point = cost_cr.point();
+
     curr_speed_limit =
         std::fmin(curr_speed_limit, speed_limit_by_index_[r_pre]);
     double cost = cost_cr.obstacle_cost() + cost_cr.spatial_potential_cost() +
