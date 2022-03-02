@@ -65,7 +65,7 @@ Status PiecewiseJerkSpeedOptimizer::Process(const PathData& path_data,
 
   const auto& veh_param =
       common::VehicleConfigHelper::GetConfig().vehicle_param();
-
+  // 初始条件
   std::array<double, 3> init_s = {0.0, st_graph_data.init_point().v(),
                                   st_graph_data.init_point().a()};
   double delta_t = 0.1;
@@ -80,17 +80,17 @@ Status PiecewiseJerkSpeedOptimizer::Process(const PathData& path_data,
   piecewise_jerk_problem.set_weight_ddx(config.acc_weight());
   piecewise_jerk_problem.set_weight_dddx(config.jerk_weight());
 
-  piecewise_jerk_problem.set_x_bounds(0.0, total_length);
+  piecewise_jerk_problem.set_x_bounds(0.0, total_length); // 距离s
   piecewise_jerk_problem.set_dx_bounds(
       0.0, std::fmax(FLAGS_planning_upper_speed_limit,
-                     st_graph_data.init_point().v()));
+                     st_graph_data.init_point().v())); // 速度
   piecewise_jerk_problem.set_ddx_bounds(veh_param.max_deceleration(),
-                                        veh_param.max_acceleration());
+                                        veh_param.max_acceleration()); //加速度
   piecewise_jerk_problem.set_dddx_bound(FLAGS_longitudinal_jerk_lower_bound,
-                                        FLAGS_longitudinal_jerk_upper_bound);
+                                        FLAGS_longitudinal_jerk_upper_bound); //加加速度
 
   piecewise_jerk_problem.set_dx_ref(config.ref_v_weight(),
-                                    reference_line_info_->GetCruiseSpeed());
+                                    reference_line_info_->GetCruiseSpeed()); //速度参考值及权重
 
   // Update STBoundary
   std::vector<std::pair<double, double>> s_bounds;
@@ -129,6 +129,7 @@ Status PiecewiseJerkSpeedOptimizer::Process(const PathData& path_data,
     }
     s_bounds.emplace_back(s_lower_bound, s_upper_bound);
   }
+  // 根据st图更新s边界
   piecewise_jerk_problem.set_x_bounds(std::move(s_bounds));
 
   // Update SpeedBoundary and ref_s
@@ -180,6 +181,7 @@ Status PiecewiseJerkSpeedOptimizer::Process(const PathData& path_data,
     if (ds[i] <= 0.0) {
       break;
     }
+    // speed_data包含s,ds,dds,ddds
     speed_data->AppendSpeedPoint(s[i], delta_t * i, ds[i], dds[i],
                                  (dds[i] - dds[i - 1]) / delta_t);
   }
