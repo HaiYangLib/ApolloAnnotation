@@ -1,0 +1,92 @@
+header {
+  timestamp_sec: 1517275936.5507183
+}
+is_replan: true
+gear: GEAR_DRIVE
+decision {
+  main_decision {
+    cruise {
+      change_lane_type: FORWARD
+    }
+  }
+  object_decision {
+    decision {
+      id: "11511_0"
+      perception_id: 11511
+      object_decision {
+        follow {
+          distance_s: -3
+          fence_point {
+            x: 586260.18772445153
+            y: 4141284.3855413129
+            z: 0
+          }
+          fence_heading: -1.3350939032979112
+        }
+      }
+    }
+    decision {
+      id: "11511_1"
+      perception_id: 11511
+      object_decision {
+        follow {
+          distance_s: -3
+          fence_point {
+            x: 586260.15246436
+            y: 4141284.5313337604
+            z: 0
+          }
+          fence_heading: -1.3504537501621541
+        }
+      }
+    }
+    decision {
+      id: "11652"
+      perception_id: 11652
+      object_decision {
+        nudge {
+          type: RIGHT_NUDGE
+          distance_l: -0.3
+        }
+      }
+    }
+  }
+  vehicle_signal {
+    turn_signal: TURN_LEFT
+  }
+}
+routing_header {
+  timestamp_sec: 1532459103.387177
+  module_name: "routing"
+  sequence_num: 3
+}
+right_of_way_status: UNPROTECTED
+lane_id {
+  id: "2726_1_-1"
+}
+lane_id {
+  id: "382_1_-1"
+}
+lane_id {
+  id: "10898_1_-1"
+}
+lane_id {
+  id: "300_1_-1"
+}
+lane_id {
+  id: "10771_1_-1"
+}
+lane_id {
+  id: "201_1_-1"
+}
+lane_id {
+  id: "2811_1_-1"
+}
+lane_id {
+  id: "2813_1_-1"
+}
+engage_advice {
+  advice: READY_TO_ENGAGE
+}
+trajectory_type: NORMAL
+replan_reason: "replan for manual mode."
