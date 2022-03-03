@@ -45,6 +45,21 @@ SpeedBoundsDecider::SpeedBoundsDecider(
     const std::shared_ptr<DependencyInjector> &injector)
     : Decider(config, injector) {
   ACHECK(config.has_speed_bounds_decider_config());
+  /**
+   * modules/planning/conf/planning_config.pb.txt
+   default_task_config: {
+     task_type: SPEED_BOUNDS_PRIORI_DECIDER
+     speed_bounds_decider_config {
+       total_time: 7.0
+       boundary_buffer: 0.25
+       max_centric_acceleration_limit: 2.0
+       point_extension: 0.0
+       lowest_speed: 2.5
+       static_obs_nudge_speed_ratio: 0.6
+       dynamic_obs_nudge_speed_ratio: 0.8
+     }
+   }
+   * **/
   speed_bounds_config_ = config.speed_bounds_decider_config();
 }
 
@@ -73,6 +88,7 @@ Status SpeedBoundsDecider::Process(
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
+  
   auto time2 = std::chrono::system_clock::now();
   std::chrono::duration<double> diff = time2 - time1;
   ADEBUG << "Time for ST Boundary Mapping = " << diff.count() * 1000
