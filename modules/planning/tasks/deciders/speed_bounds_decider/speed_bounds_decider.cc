@@ -88,7 +88,7 @@ Status SpeedBoundsDecider::Process(
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
-  
+
   auto time2 = std::chrono::system_clock::now();
   std::chrono::duration<double> diff = time2 - time1;
   ADEBUG << "Time for ST Boundary Mapping = " << diff.count() * 1000
@@ -127,6 +127,7 @@ Status SpeedBoundsDecider::Process(
   const double path_data_length = path_data.discretized_path().Length();
 
   // 4. Get time duration as t axis search bound in st graph
+  // 7秒
   const double total_time_by_conf = speed_bounds_config_.total_time();
 
   // Load generated st graph data back to frame
@@ -137,6 +138,15 @@ Status SpeedBoundsDecider::Process(
   auto *debug = reference_line_info_->mutable_debug();
   STGraphDebug *st_graph_debug = debug->mutable_planning_data()->add_st_graph();
 
+  /**
+   * void StGraphData::LoadData(const std::vector<const STBoundary*>&
+   st_boundaries, const double min_s_on_st_boundaries, const
+   apollo::common::TrajectoryPoint& init_point, const SpeedLimit& speed_limit,
+                           const double cruise_speed,
+                           const double path_data_length,
+                           const double total_time_by_conf,
+                           planning_internal::STGraphDebug* st_graph_debug)
+   * **/
   st_graph_data->LoadData(boundaries, min_s_on_st_boundaries, init_point,
                           speed_limit, reference_line_info->GetCruiseSpeed(),
                           path_data_length, total_time_by_conf, st_graph_debug);
@@ -165,6 +175,7 @@ double SpeedBoundsDecider::SetSpeedFallbackDistance(
     const auto right_bottom_point_s = st_boundary.bottom_right_point().s();
     const auto lowest_s = std::min(left_bottom_point_s, right_bottom_point_s);
 
+    // 用来区分同向或反向
     if (left_bottom_point_s - right_bottom_point_s > kEpsilon) {
       if (min_s_reverse > lowest_s) {
         min_s_reverse = lowest_s;

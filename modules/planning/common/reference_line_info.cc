@@ -152,6 +152,7 @@ void ReferenceLineInfo::SetCandidatePathBoundaries(
 }
 
 double ReferenceLineInfo::GetCruiseSpeed() const {
+  // DEFINE_double(default_cruise_speed, 5.0, "default cruise speed");
   return cruise_speed_ > 0.0 ? cruise_speed_ : FLAGS_default_cruise_speed;
 }
 
