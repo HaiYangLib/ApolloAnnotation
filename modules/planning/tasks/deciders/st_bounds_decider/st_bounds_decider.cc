@@ -44,6 +44,15 @@ STBoundsDecider::STBoundsDecider(
     const std::shared_ptr<DependencyInjector>& injector)
     : Decider(config, injector) {
   ACHECK(config.has_st_bounds_decider_config());
+  /**
+   * modules/planning/conf/planning_config.pb.txt
+   * default_task_config: {
+  task_type: ST_BOUNDS_DECIDER
+  st_bounds_decider_config {
+    total_time: 7.0
+  }
+  }
+   * **/
   st_bounds_config_ = config.st_bounds_decider_config();
 }
 
@@ -67,6 +76,7 @@ Status STBoundsDecider::Process(Frame* const frame,
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
+
   StGraphData* st_graph_data = reference_line_info_->mutable_st_graph_data();
   st_graph_data->SetSTDrivableBoundary(regular_st_bound, regular_vt_bound);
 
@@ -76,6 +86,7 @@ Status STBoundsDecider::Process(Frame* const frame,
   for (const auto& st_boundary : all_st_boundaries) {
     st_boundaries.push_back(st_boundary.second);
   }
+  
   ADEBUG << "Total ST boundaries = " << st_boundaries.size();
   STGraphDebug* st_graph_debug = reference_line_info->mutable_debug()
                                      ->mutable_planning_data()

@@ -46,6 +46,7 @@ bool PathTimeHeuristicOptimizer::SearchPathTimeGraph(
           ? speed_heuristic_optimizer_config_.lane_change_speed_config()
           : speed_heuristic_optimizer_config_.default_speed_config();
 
+
   GriddedPathTimeGraph st_graph(
       reference_line_info_->st_graph_data(), dp_st_speed_optimizer_config,
       reference_line_info_->path_decision()->obstacles().Items(), init_point_);
@@ -54,6 +55,7 @@ bool PathTimeHeuristicOptimizer::SearchPathTimeGraph(
     AERROR << "failed to search graph with dynamic programming.";
     return false;
   }
+  
   return true;
 }
 

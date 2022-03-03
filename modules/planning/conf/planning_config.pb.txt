@@ -145,7 +145,8 @@ default_task_config: {
   st_bounds_decider_config {
     total_time: 7.0
   }
-}modules/planning/conf/planning_config.pb.txt
+}
+
 default_task_config: {
   task_type: SPEED_BOUNDS_PRIORI_DECIDER
   speed_bounds_decider_config {

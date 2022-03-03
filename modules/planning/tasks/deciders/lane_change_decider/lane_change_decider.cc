@@ -44,6 +44,20 @@ Status LaneChangeDecider::Process(
   // Sanity checks.
   CHECK_NOTNULL(frame);
 
+  /**
+   * modules/planning/conf/planning_config.pb.txt
+   * default_task_config: {
+  task_type: LANE_CHANGE_DECIDER
+  lane_change_decider_config {
+    enable_lane_change_urgency_check: false
+    enable_prioritize_change_lane: false
+    enable_remove_change_lane: false
+    reckless_change_lane: false
+    change_lane_success_freeze_time: 1.5
+    change_lane_fail_freeze_time: 1.0
+  }
+  }
+   * **/
   const auto& lane_change_decider_config = config_.lane_change_decider_config();
 
   std::list<ReferenceLineInfo>* reference_line_info =

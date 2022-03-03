@@ -21,10 +21,9 @@
 #include "modules/planning/tasks/optimizers/piecewise_jerk_speed/piecewise_jerk_speed_nonlinear_optimizer.h"
 
 #include <algorithm>
-#include <string>
-
 #include <coin/IpIpoptApplication.hpp>
 #include <coin/IpSolveStatistics.hpp>
+#include <string>
 
 #include "modules/common/proto/pnc_point.pb.h"
 #include "modules/common/util/util.h"
@@ -74,6 +73,7 @@ Status PiecewiseJerkSpeedNonlinearOptimizer::Process(
 
   const auto problem_setups_status =
       SetUpStatesAndBounds(path_data, *speed_data);
+      
   if (!problem_setups_status.ok()) {
     speed_data->clear();
     return problem_setups_status;
@@ -193,13 +193,16 @@ Status PiecewiseJerkSpeedNonlinearOptimizer::SetUpStatesAndBounds(
   s_ddot_init_ = st_graph_data.init_point().a();
 
   // Set s_dot bounary
+  // 最到速度
   s_dot_max_ = std::fmax(FLAGS_planning_upper_speed_limit,
                          st_graph_data.init_point().v());
 
   // Set s_ddot boundary
   const auto& veh_param =
       common::VehicleConfigHelper::GetConfig().vehicle_param();
+  // 最到加速度
   s_ddot_max_ = veh_param.max_acceleration();
+  // 最到加加速度
   s_ddot_min_ = -1.0 * std::abs(veh_param.max_deceleration());
 
   // Set s_dddot boundary
@@ -209,6 +212,10 @@ Status PiecewiseJerkSpeedNonlinearOptimizer::SetUpStatesAndBounds(
   s_dddot_max_ = FLAGS_longitudinal_jerk_upper_bound;
 
   // Set s boundary
+  /**
+   * DEFINE_bool(use_soft_bound_in_nonlinear_speed_opt, true,
+            "False to disallow soft bound in nonlinear speed opt");
+   * **/
   if (FLAGS_use_soft_bound_in_nonlinear_speed_opt) {
     s_bounds_.clear();
     s_soft_bounds_.clear();
@@ -219,6 +226,7 @@ Status PiecewiseJerkSpeedNonlinearOptimizer::SetUpStatesAndBounds(
       double s_upper_bound = total_length_;
       double s_soft_lower_bound = 0.0;
       double s_soft_upper_bound = total_length_;
+      
       for (const STBoundary* boundary : st_graph_data.st_boundaries()) {
         double s_lower = 0.0;
         double s_upper = 0.0;
@@ -254,12 +262,14 @@ Status PiecewiseJerkSpeedNonlinearOptimizer::SetUpStatesAndBounds(
             break;
         }
       }
+
       if (s_lower_bound > s_upper_bound) {
         const std::string msg =
             "s_lower_bound larger than s_upper_bound on STGraph";
         AERROR << msg;
         return Status(ErrorCode::PLANNING_ERROR, msg);
       }
+      
       s_soft_bounds_.emplace_back(s_soft_lower_bound, s_soft_upper_bound);
       s_bounds_.emplace_back(s_lower_bound, s_upper_bound);
     }
