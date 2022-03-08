@@ -81,8 +81,7 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
 
     // If no longitudinal decision has been made, then plot it onto ST-graph.
     if (!ptr_obstacle->HasLongitudinalDecision()) {
-      Comp
-      uteSTBoundary(ptr_obstacle);
+      ComputeSTBoundary(ptr_obstacle);
       continue;
     }
 
