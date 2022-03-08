@@ -109,6 +109,7 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
       AWARN << "No mapping for decision: " << decision.DebugString();
     }
   }
+
   if (stop_obstacle) {
     bool success = MapStopDecision(stop_obstacle, stop_decision);
     if (!success) {
@@ -187,6 +188,10 @@ void STBoundaryMapper::ComputeSTBoundary(Obstacle* obstacle) const {
   obstacle->set_path_st_boundary(boundary);
 }
 
+/**
+ * 用来创建st图，upper_points和lower_points用来保存上下边界
+ * lattice planner的PathTimeGraph::SetupObstacles函数也实现了类似的功能
+ * **/
 bool STBoundaryMapper::GetOverlapBoundaryPoints(
     const std::vector<PathPoint>& path_points, const Obstacle& obstacle,
     std::vector<STPoint>* upper_points,
@@ -211,6 +216,7 @@ bool STBoundaryMapper::GetOverlapBoundaryPoints(
 
   // Draw the given obstacle on the ST-graph.
   const auto& trajectory = obstacle.Trajectory();
+  // 如果是静态障碍物，则st图为一个矩形
   if (trajectory.trajectory_point().empty()) {
     // For those with no predicted trajectories, just map the obstacle's
     // current position to ST-graph and always assume it's static.
@@ -243,7 +249,7 @@ bool STBoundaryMapper::GetOverlapBoundaryPoints(
         break;
       }
     }
-  } else {
+  } else { // 动态障碍物
     // For those with predicted trajectories (moving obstacles):
     // 1. Subsample to reduce computation time.
     const int default_num_point = 50;
