@@ -27,7 +27,7 @@
 #include "osqp/osqp.h"
 
 namespace apollo {
-namespace planning {
+namespace planning {                    
 
 /*
  * @brief:
@@ -46,7 +46,7 @@ namespace planning {
  * which makes the line P(start), P0, P(1) ... P(k-1) "smooth".
  */
 
-class PiecewiseJerkProblem {
+class PiecewiseJerkProblem {   
  public:
   PiecewiseJerkProblem(const size_t num_of_knots, const double delta_s,
                        const std::array<double, 3>& x_init);
