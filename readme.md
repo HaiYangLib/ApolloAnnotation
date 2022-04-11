@@ -32,9 +32,11 @@ modules/perception/production/data/perception/camera/models/lane_detector/darkSC
 
 ![image-20220112232738411](assets/readme.assets/image-20220112232738411.png)
 
-
-
 **橙色的部分是正在做的工作。**与注释相关的文档，全部保存在**doc文件夹**中。
+
+![image-20220410145530969](assets/readme.assets/image-20220410145530969.png)
+
+
 
 **各个模块订阅及发布的Topic**
 

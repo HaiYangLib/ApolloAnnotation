@@ -106,6 +106,10 @@ bool ControlComponent::Init() {
         node_->CreateWriter<ControlCommand>(FLAGS_control_command_topic);
     ACHECK(control_cmd_writer_ != nullptr);
   } else {
+    /**
+     * DEFINE_string(control_command_topic, "/apollo/control",
+              "control command topic name");
+     * **/
     local_view_writer_ =
         node_->CreateWriter<LocalView>(FLAGS_control_local_view_topic);
     ACHECK(local_view_writer_ != nullptr);
@@ -166,6 +170,7 @@ void ControlComponent::OnMonitor(
 
 Status ControlComponent::ProduceControlCommand(
     ControlCommand *control_command) {
+  // 步骤1：检查输入    
   Status status = CheckInput(&local_view_);
   // check data
 
@@ -286,7 +291,8 @@ Status ControlComponent::ProduceControlCommand(
 
 bool ControlComponent::Proc() {
   const auto start_time = Clock::Now();
-
+  
+  // 步骤1：收集输入信息
   chassis_reader_->Observe();
   const auto &chassis_msg = chassis_reader_->GetLatestObserved();
   if (chassis_msg == nullptr) {
@@ -318,6 +324,7 @@ bool ControlComponent::Proc() {
     OnPad(pad_msg);
   }
 
+  // 步骤2：将输入信息保存
   {
     // TODO(SHU): to avoid redundent copy
     std::lock_guard<std::mutex> lock(mutex_);
@@ -374,8 +381,8 @@ bool ControlComponent::Proc() {
     return false;
   }
 
+  // 步骤3：计算控制指令
   ControlCommand control_command;
-
   Status status = ProduceControlCommand(&control_command);
   AERROR_IF(!status.ok()) << "Failed to produce control command:"
                           << status.error_message();
@@ -424,7 +431,7 @@ bool ControlComponent::Proc() {
         local_view_.trajectory().header().lidar_timestamp(), start_time,
         end_time);
   }
-
+  // 步骤4：输出控制
   control_cmd_writer_->Write(control_command);
   return true;
 }

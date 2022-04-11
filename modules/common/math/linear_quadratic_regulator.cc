@@ -28,6 +28,7 @@ namespace math {
 using Matrix = Eigen::MatrixXd;
 
 // solver with cross term
+// 求解黎卡提方程
 void SolveLQRProblem(const Matrix &A, const Matrix &B, const Matrix &Q,
                      const Matrix &R, const Matrix &M, const double tolerance,
                      const uint max_num_iteration, Matrix *ptr_K) {

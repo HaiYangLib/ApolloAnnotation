@@ -46,7 +46,7 @@ double PIDController::Control(const double error, const double dt) {
     // apply Ki before integrating to avoid steps when change Ki at steady state
     if (integral_ > integrator_saturation_high_) {
       integral_ = integrator_saturation_high_;
-      integrator_saturation_status_ = 1;
+      integrator_saturation_status_ = 1; // 积分器是否饱和
     } else if (integral_ < integrator_saturation_low_) {
       integral_ = integrator_saturation_low_;
       integrator_saturation_status_ = -1;

@@ -292,10 +292,12 @@ bool MpcOsqp::Solve(std::vector<double> *control_cmd) {
   for (int i = 0; i < data->n; ++i) {
     ADEBUG << "OSQP data q" << i << ":" << (data->q)[i];
   }
+
   ADEBUG << "OSQP data l" << data->l;
   for (int i = 0; i < data->m; ++i) {
     ADEBUG << "OSQP data l" << i << ":" << (data->l)[i];
   }
+  
   ADEBUG << "OSQP data u" << data->u;
   for (int i = 0; i < data->m; ++i) {
     ADEBUG << "OSQP data u" << i << ":" << (data->u)[i];

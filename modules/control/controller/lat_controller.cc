@@ -23,7 +23,6 @@
 
 #include "Eigen/LU"
 #include "absl/strings/str_cat.h"
-
 #include "cyber/common/log.h"
 #include "cyber/time/clock.h"
 #include "modules/common/configs/config_gflags.h"
@@ -111,7 +110,7 @@ bool LatController::LoadControlConf(const ControlConf *control_conf) {
   // lookahead_station: 1.4224
   lookahead_station_low_speed_ =
       control_conf->lat_controller_conf().lookahead_station();
-  // lookback_station: 2.8448    
+  // lookback_station: 2.8448
   lookback_station_low_speed_ =
       control_conf->lat_controller_conf().lookback_station();
 
@@ -122,15 +121,15 @@ bool LatController::LoadControlConf(const ControlConf *control_conf) {
   lookback_station_high_speed_ =
       control_conf->lat_controller_conf().lookback_station_high_speed();
 
-  wheelbase_ = vehicle_param_.wheel_base(); //轴距
-  steer_ratio_ = vehicle_param_.steer_ratio(); //转向比
+  wheelbase_ = vehicle_param_.wheel_base();     //轴距
+  steer_ratio_ = vehicle_param_.steer_ratio();  //转向比
   steer_single_direction_max_degree_ =
       vehicle_param_.max_steer_angle() / M_PI * 180;
-  // max_lateral_acceleration: 5.0    
+  // max_lateral_acceleration: 5.0
   max_lat_acc_ = control_conf->lat_controller_conf().max_lateral_acceleration();
   // switch_speed: 3.0
   low_speed_bound_ = control_conf_->lon_controller_conf().switch_speed();
-  // switch_speed_window: 1.0 
+  // switch_speed_window: 1.0
   low_speed_window_ =
       control_conf_->lon_controller_conf().switch_speed_window();
   // mass_fl: 520
@@ -154,8 +153,9 @@ bool LatController::LoadControlConf(const ControlConf *control_conf) {
   iz_ = lf_ * lf_ * mass_front + lr_ * lr_ * mass_rear;
 
   lqr_eps_ = control_conf->lat_controller_conf().eps();
+  //  max_iteration: 150
   lqr_max_iteration_ = control_conf->lat_controller_conf().max_iteration();
-
+  // query_relative_time: 0.8
   query_relative_time_ = control_conf->query_relative_time();
 
   minimum_speed_protection_ = control_conf->minimum_speed_protection();
@@ -206,7 +206,7 @@ void LatController::InitializeFilters(const ControlConf *control_conf) {
 
 Status LatController::Init(std::shared_ptr<DependencyInjector> injector,
                            const ControlConf *control_conf) {
-  // modules/control/conf/control_conf.pb.txt                          
+  // modules/control/conf/control_conf.pb.txt
   control_conf_ = control_conf;
   injector_ = injector;
   if (!LoadControlConf(control_conf_)) {
@@ -278,13 +278,13 @@ Status LatController::Init(std::shared_ptr<DependencyInjector> injector,
   auto &lat_controller_conf = control_conf_->lat_controller_conf();
   LoadLatGainScheduler(lat_controller_conf);
   LogInitParameters();
-
+  //   enable_reverse_leadlag_compensation: true
   enable_leadlag_ = control_conf_->lat_controller_conf()
                         .enable_reverse_leadlag_compensation();
   if (enable_leadlag_) {
     leadlag_controller_.Init(lat_controller_conf.reverse_leadlag_conf(), ts_);
   }
-
+  //  enable_steer_mrac_control: false
   enable_mrac_ =
       control_conf_->lat_controller_conf().enable_steer_mrac_control();
   if (enable_mrac_) {
@@ -476,6 +476,7 @@ Status LatController::ComputeControlCommand(
   matrix_b_(3, 0) = lf_ * cf_ / iz_;
   matrix_bd_ = matrix_b_ * ts_;
 
+  // 更新驾驶方向
   UpdateDrivingOrientation();
 
   SimpleLateralDebug *debug = cmd->mutable_debug()->mutable_simple_lat_debug();
@@ -483,11 +484,15 @@ Status LatController::ComputeControlCommand(
 
   // Update state = [Lateral Error, Lateral Error Rate, Heading Error, Heading
   // Error Rate, preview lateral error1 , preview lateral error2, ...]
+  // 更新err=[e_d,dot{e_d},e_heading,dot{e_heading}]
+  // 步骤1
   UpdateState(debug);
 
-  UpdateMatrix(); 
+  // 更新A矩阵
+  UpdateMatrix();
 
   // Compound discrete matrix with road preview model
+  // 得到离散后的A,B: matrix_adc_和matrix_bdc_
   UpdateMatrixCompound();
 
   // Adjust matrix_q_updated when in reverse gear
@@ -506,6 +511,10 @@ Status LatController::ComputeControlCommand(
   }
 
   // Add gain scheduler for higher speed steering
+  /**
+   * DEFINE_bool(enable_gain_scheduler, false,
+   *         "Enable gain scheduler for higher vehicle speed");
+   * **/
   if (FLAGS_enable_gain_scheduler) {
     matrix_q_updated_(0, 0) =
         matrix_q_(0, 0) * lat_err_interpolation_->Interpolate(
@@ -513,28 +522,43 @@ Status LatController::ComputeControlCommand(
     matrix_q_updated_(2, 2) =
         matrix_q_(2, 2) * heading_err_interpolation_->Interpolate(
                               std::fabs(vehicle_state->linear_velocity()));
+    // 步骤2：
     common::math::SolveLQRProblem(matrix_adc_, matrix_bdc_, matrix_q_updated_,
                                   matrix_r_, lqr_eps_, lqr_max_iteration_,
                                   &matrix_k_);
   } else {
+    /**
+     * 求解黎卡提方程,得到增益矩阵K,即matrix_k_
+     * matrix_adc_和matrix_bdc_对应离散化后的A,B
+     * max_iteration: 150
+     * **/
     common::math::SolveLQRProblem(matrix_adc_, matrix_bdc_, matrix_q_,
                                   matrix_r_, lqr_eps_, lqr_max_iteration_,
                                   &matrix_k_);
   }
 
-  // feedback = - K * state
+  // feedback = - K * state //前轮角度反馈
   // Convert vehicle steer angle from rad to degree and then to steer degree
   // then to 100% ratio
+  // 通过LQR控制器得到一个反馈控制量 feedback = - K * state
+  // 步骤3
   const double steer_angle_feedback = -(matrix_k_ * matrix_state_)(0, 0) * 180 /
                                       M_PI * steer_ratio_ /
                                       steer_single_direction_max_degree_ * 100;
-
+  // 通过前馈控制器计算得到一个前馈控制量
+  // 步骤4
   const double steer_angle_feedforward = ComputeFeedForward(debug->curvature());
 
   double steer_angle = 0.0;
   double steer_angle_feedback_augment = 0.0;
   // Augment the feedback control on lateral error at the desired speed domain
   if (enable_leadlag_) {
+    /**
+     * 
+     * DEFINE_bool(enable_feedback_augment_on_high_speed, false,
+     *       "Enable augmented control on lateral error on high speed");
+     * low_speed_bound_ = switch_speed: 3.0
+     * **/
     if (FLAGS_enable_feedback_augment_on_high_speed ||
         std::fabs(vehicle_state->linear_velocity()) < low_speed_bound_) {
       steer_angle_feedback_augment =
@@ -550,11 +574,17 @@ Status LatController::ComputeControlCommand(
       }
     }
   }
+
+  // LQR反馈控制量+前馈控制量+steer_angle_feedback_augment
   steer_angle = steer_angle_feedback + steer_angle_feedforward +
                 steer_angle_feedback_augment;
 
   // Compute the steering command limit with the given maximum lateral
   // acceleration
+  /**
+   * DEFINE_bool(set_steer_limit, false, "Set steer limit");
+   * steer_limit=100
+   * **/  
   const double steer_limit =
       FLAGS_set_steer_limit ? std::atan(max_lat_acc_ * wheelbase_ /
                                         (vehicle_state->linear_velocity() *
@@ -562,7 +592,11 @@ Status LatController::ComputeControlCommand(
                                   steer_ratio_ * 180 / M_PI /
                                   steer_single_direction_max_degree_ * 100
                             : 100.0;
-
+  /**
+   * DEFINE_bool(enable_maximum_steer_rate_limit, false,
+            "Enable steer rate limit obtained from vehicle_param.pb.txt");
+     steer_diff_with_max_rate=100
+   * **/
   const double steer_diff_with_max_rate =
       FLAGS_enable_maximum_steer_rate_limit
           ? vehicle_param_.max_steer_angle_rate() * ts_ * 180 / M_PI /
@@ -573,6 +607,7 @@ Status LatController::ComputeControlCommand(
 
   // Re-compute the steering command if the MRAC control is enabled, with steer
   // angle limitation and steer rate limitation
+  // enable_steer_mrac_control: false
   if (enable_mrac_) {
     const int mrac_model_order = control_conf_->lat_controller_conf()
                                      .steer_mrac_conf()
@@ -637,11 +672,13 @@ Status LatController::ComputeControlCommand(
   cmd->set_steering_target(common::math::Clamp(
       steer_angle, pre_steer_angle_ - steer_diff_with_max_rate,
       pre_steer_angle_ + steer_diff_with_max_rate));
+  // steer_angle_rate: 100    
   cmd->set_steering_rate(FLAGS_steer_angle_rate);
 
   pre_steer_angle_ = cmd->steering_target();
 
   // compute extra information for logging and debugging
+  // LAQ得到K: feedback = - K * state
   const double steer_angle_lateral_contribution =
       -matrix_k_(0, 0) * matrix_state_(0, 0) * 180 / M_PI * steer_ratio_ /
       steer_single_direction_max_degree_ * 100;
@@ -661,12 +698,14 @@ Status LatController::ComputeControlCommand(
   debug->set_heading(driving_orientation_);
   debug->set_steer_angle(steer_angle);
   debug->set_steer_angle_feedforward(steer_angle_feedforward);
+
   debug->set_steer_angle_lateral_contribution(steer_angle_lateral_contribution);
   debug->set_steer_angle_lateral_rate_contribution(
       steer_angle_lateral_rate_contribution);
   debug->set_steer_angle_heading_contribution(steer_angle_heading_contribution);
   debug->set_steer_angle_heading_rate_contribution(
       steer_angle_heading_rate_contribution);
+
   debug->set_steer_angle_feedback(steer_angle_feedback);
   debug->set_steer_angle_feedback_augment(steer_angle_feedback_augment);
   debug->set_steering_position(steering_position);
@@ -686,6 +725,11 @@ Status LatController::Reset() {
 
 void LatController::UpdateState(SimpleLateralDebug *debug) {
   auto vehicle_state = injector_->vehicle_state();
+  /**
+   *
+    DEFINE_bool(use_navigation_mode, false,
+            "Use relative position in navigation mode");
+   * **/
   if (FLAGS_use_navigation_mode) {
     ComputeLateralErrors(
         0.0, 0.0, driving_orientation_, vehicle_state->linear_velocity(),
@@ -695,6 +739,7 @@ void LatController::UpdateState(SimpleLateralDebug *debug) {
     // Transform the coordinate of the vehicle states from the center of the
     // rear-axis to the center of mass, if conditions matched
     const auto &com = vehicle_state->ComputeCOMPosition(lr_);
+    // 计算横向误差
     ComputeLateralErrors(
         com.x(), com.y(), driving_orientation_,
         vehicle_state->linear_velocity(), vehicle_state->angular_velocity(),
@@ -710,10 +755,12 @@ void LatController::UpdateState(SimpleLateralDebug *debug) {
     matrix_state_(0, 0) = debug->lateral_error();
     matrix_state_(2, 0) = debug->heading_error();
   }
+  // 得到err向量
   matrix_state_(1, 0) = debug->lateral_error_rate();
   matrix_state_(3, 0) = debug->heading_error_rate();
 
   // Next elements are depending on preview window size;
+  // preview_window: 0
   for (int i = 0; i < preview_window_; ++i) {
     const double preview_time = ts_ * (i + 1);
     const auto preview_point =
@@ -762,6 +809,8 @@ void LatController::UpdateMatrix() {
 
 void LatController::UpdateMatrixCompound() {
   // Initialize preview matrix
+  // basic_state_size_：4
+  // matrix_adc_和matrix_bdc_对应离散化后的A,B
   matrix_adc_.block(0, 0, basic_state_size_, basic_state_size_) = matrix_ad_;
   matrix_bdc_.block(0, 0, basic_state_size_, 1) = matrix_bd_;
   if (preview_window_ > 0) {
@@ -773,6 +822,7 @@ void LatController::UpdateMatrixCompound() {
   }
 }
 
+// 计算前馈误差
 double LatController::ComputeFeedForward(double ref_curvature) const {
   const double kv =
       lr_ * mass_ / 2 / cf_ / wheelbase_ - lf_ * mass_ / 2 / cr_ / wheelbase_;
@@ -786,6 +836,10 @@ double LatController::ComputeFeedForward(double ref_curvature) const {
                                   steer_ratio_ /
                                   steer_single_direction_max_degree_ * 100;
   } else {
+    /**
+     * ref_curvature:曲率 1/R
+     * 
+     * **/
     steer_angle_feedforwardterm =
         (wheelbase_ * ref_curvature + kv * v * v * ref_curvature -
          matrix_k_(0, 2) *
@@ -802,7 +856,10 @@ void LatController::ComputeLateralErrors(
     const double angular_v, const double linear_a,
     const TrajectoryAnalyzer &trajectory_analyzer, SimpleLateralDebug *debug) {
   TrajectoryPoint target_point;
-
+  /**
+   * DEFINE_bool(query_time_nearest_point_only, false,
+            "only use the trajectory point at nearest time as target point");
+   * **/
   if (FLAGS_query_time_nearest_point_only) {
     target_point = trajectory_analyzer.QueryNearestPointByAbsoluteTime(
         Clock::NowInSeconds() + query_relative_time_);
@@ -812,6 +869,7 @@ void LatController::ComputeLateralErrors(
       target_point = trajectory_analyzer.QueryNearestPointByAbsoluteTime(
           Clock::NowInSeconds() + query_relative_time_);
     } else {
+      // 查找位置最近的点，作为参考点
       target_point = trajectory_analyzer.QueryNearestPointByPosition(x, y);
     }
   }
@@ -829,7 +887,12 @@ void LatController::ComputeLateralErrors(
   const double cos_target_heading = std::cos(target_point.path_point().theta());
   const double sin_target_heading = std::sin(target_point.path_point().theta());
 
+  // 横向误差
   double lateral_error = cos_target_heading * dy - sin_target_heading * dx;
+  /**
+   * DEFINE_bool(enable_navigation_mode_error_filter, false,
+            "Enable error_filter for navigation mode");
+   * **/
   if (FLAGS_enable_navigation_mode_error_filter) {
     lateral_error = lateral_error_filter_.Update(lateral_error);
   }
@@ -837,6 +900,7 @@ void LatController::ComputeLateralErrors(
   debug->set_lateral_error(lateral_error);
 
   debug->set_ref_heading(target_point.path_point().theta());
+  // 航向角误差
   double heading_error =
       common::math::NormalizeAngle(theta - debug->ref_heading());
   if (FLAGS_enable_navigation_mode_error_filter) {
@@ -848,10 +912,14 @@ void LatController::ComputeLateralErrors(
   // lookahead/lookback station for "soft" prediction window switch
   double lookahead_station = 0.0;
   double lookback_station = 0.0;
+
+  // lookahead_station_high_speed: 1.4224
+  // lookback_station_high_speed: 2.8448
   if (std::fabs(linear_v) >= low_speed_bound_) {
     lookahead_station = lookahead_station_high_speed_;
     lookback_station = lookback_station_high_speed_;
   } else if (std::fabs(linear_v) < low_speed_bound_ - low_speed_window_) {
+    // lookahead_station: 1.4224
     lookahead_station = lookahead_station_low_speed_;
     lookback_station = lookback_station_low_speed_;
   } else {
@@ -877,6 +945,7 @@ void LatController::ComputeLateralErrors(
         heading_error + target_point.path_point().theta() -
         lookahead_point.path_point().theta());
   }
+
   debug->set_heading_error_feedback(heading_error_feedback);
 
   // Estimate the lateral error with look-ahead/look-back windows as feedback
@@ -889,16 +958,19 @@ void LatController::ComputeLateralErrors(
     lateral_error_feedback =
         lateral_error + lookahead_station * std::sin(heading_error);
   }
+
   debug->set_lateral_error_feedback(lateral_error_feedback);
 
   auto lateral_error_dot = linear_v * std::sin(heading_error);
   auto lateral_error_dot_dot = linear_a * std::sin(heading_error);
+
   if (FLAGS_reverse_heading_control) {
     if (injector_->vehicle_state()->gear() == canbus::Chassis::GEAR_REVERSE) {
       lateral_error_dot = -lateral_error_dot;
       lateral_error_dot_dot = -lateral_error_dot_dot;
     }
   }
+
   debug->set_lateral_error_rate(lateral_error_dot);
   debug->set_lateral_acceleration(lateral_error_dot_dot);
   debug->set_lateral_jerk(
@@ -910,6 +982,7 @@ void LatController::ComputeLateralErrors(
   } else {
     debug->set_heading_rate(angular_v);
   }
+
   debug->set_ref_heading_rate(target_point.path_point().kappa() *
                               target_point.v());
   debug->set_heading_error_rate(debug->heading_rate() -
@@ -942,6 +1015,8 @@ void LatController::UpdateDrivingOrientation() {
   driving_orientation_ = vehicle_state->heading();
   matrix_bd_ = matrix_b_ * ts_;
   // Reverse the driving direction if the vehicle is in reverse mode
+  // DEFINE_bool(reverse_heading_control, false, "test vehicle reverse
+  // control");
   if (FLAGS_reverse_heading_control) {
     if (vehicle_state->gear() == canbus::Chassis::GEAR_REVERSE) {
       driving_orientation_ =
