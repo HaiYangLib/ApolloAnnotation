@@ -462,7 +462,7 @@ void OnLanePlanning::RunOnce(const LocalView& local_view,
     return;
   }
 
-  // 步骤11.根据交通规则产生一些plan target如停止点，虚拟障碍物，巡航速度等
+  // 步骤11. 交通决策，根据交通规则产生一些plan target如停止点，虚拟障碍物，巡航速度等
   for (auto& ref_line_info : *frame_->mutable_reference_line_info()) {
     TrafficDecider traffic_decider;
     traffic_decider.Init(traffic_rule_configs_);

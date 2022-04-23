@@ -528,6 +528,7 @@ perception::TrafficLight Frame::GetSignal(
   return *result;
 }
 
+// pad_msg_driving_action_ 用来确定场景类型
 void Frame::ReadPadMsgDrivingAction() {
   if (local_view_.pad_msg) {
     if (local_view_.pad_msg->has_action()) {

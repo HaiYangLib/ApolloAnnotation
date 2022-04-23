@@ -270,8 +270,7 @@ Status LatticePlanner::PlanOnReferenceLine(
          << "  number_lat_traj = " << lat_trajectory1d_bundle.size();
 
   // Get instance of collision checker and constraint checker
-  CollisionChe
-  cker collision_checker(frame->obstacles(), init_s[0], init_d[0],
+  CollisionChecker collision_checker(frame->obstacles(), init_s[0], init_d[0],
                                      *ptr_reference_line, reference_line_info,
                                      ptr_path_time_graph);
 
