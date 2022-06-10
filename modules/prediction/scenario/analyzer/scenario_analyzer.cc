@@ -37,6 +37,7 @@ std::shared_ptr<ScenarioFeatures> ScenarioAnalyzer::Analyze(
 
   if (scenario_type == Scenario::CRUISE) {
     auto cruise_scenario_features = std::make_shared<CruiseScenarioFeatures>();
+    // 找到需要的车道的id，并保存
     cruise_scenario_features->BuildCruiseScenarioFeatures(environment_features);
     return cruise_scenario_features;
   }
@@ -45,6 +46,7 @@ std::shared_ptr<ScenarioFeatures> ScenarioAnalyzer::Analyze(
     auto junction_scenario_features =
         std::make_shared<JunctionScenarioFeatures>();
     // TODO(all) refactor this part
+    // 保存交叉路口的id
     junction_scenario_features->BuildJunctionScenarioFeatures(
         environment_features);
     return junction_scenario_features;

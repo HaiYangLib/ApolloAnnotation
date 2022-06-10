@@ -149,6 +149,10 @@ Status PathBoundsDecider::Process(
   }
 
   // If it's a lane-change reference-line, generate lane-change path boundary.
+  /**
+   * DEFINE_bool(enable_smarter_lane_change, false,
+            "enable smarter lane change with longer preparation distance.");
+   * **/
   if (FLAGS_enable_smarter_lane_change &&
       reference_line_info->IsChangeLanePath()) {
     PathBound lanechange_path_bound;
@@ -914,6 +918,7 @@ bool PathBoundsDecider::InitPathBoundary(
                                         reference_line_info.GetCruiseSpeed() *
                                             FLAGS_trajectory_time_length),
                           reference_line.Length());
+       // kPathBoundsDeciderResolution:0.5                   
        curr_s += kPathBoundsDeciderResolution) {
     path_bound->emplace_back(curr_s, std::numeric_limits<double>::lowest(),
                              std::numeric_limits<double>::max());

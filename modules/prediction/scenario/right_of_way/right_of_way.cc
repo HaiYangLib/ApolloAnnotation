@@ -69,6 +69,7 @@ void RightOfWay::Analyze(ContainerManager* container_manager) {
     AERROR << "Pose obstacle pointer is a null pointer.";
     return;
   }
+  
   double pose_x = pose_obstacle_ptr->position().x();
   double pose_y = pose_obstacle_ptr->position().y();
   double ego_vehicle_s = std::numeric_limits<double>::max();

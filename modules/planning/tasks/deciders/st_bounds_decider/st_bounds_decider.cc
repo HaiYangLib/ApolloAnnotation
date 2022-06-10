@@ -47,11 +47,11 @@ STBoundsDecider::STBoundsDecider(
   /**
    * modules/planning/conf/planning_config.pb.txt
    * default_task_config: {
-  task_type: ST_BOUNDS_DECIDER
-  st_bounds_decider_config {
-    total_time: 7.0
-  }
-  }
+      task_type: ST_BOUNDS_DECIDER
+      st_bounds_decider_config {
+        total_time: 7.0
+      }
+     }
    * **/
   st_bounds_config_ = config.st_bounds_decider_config();
 }
@@ -167,6 +167,7 @@ Status STBoundsDecider::GenerateFallbackSTBound(STBound* const st_bound,
       AERROR << msg;
       return Status(ErrorCode::PLANNING_ERROR, msg);
     }
+
     std::vector<std::pair<STBoundPoint, ObsDecSet>> available_choices;
     ADEBUG << "Available choices are:";
     for (int j = 0; j < static_cast<int>(available_s_bounds.size()); ++j) {
@@ -177,6 +178,7 @@ Status STBoundsDecider::GenerateFallbackSTBound(STBound* const st_bound,
                           available_s_bounds[j].second),
           available_obs_decisions[j]);
     }
+    
     RemoveInvalidDecisions(driving_limits_bound, &available_choices);
 
     // Always go for the most conservative option.
@@ -271,6 +273,7 @@ Status STBoundsDecider::GenerateRegularSTBound(
       AERROR << msg;
       return Status(ErrorCode::PLANNING_ERROR, msg);
     }
+    
     std::vector<std::pair<STBoundPoint, ObsDecSet>> available_choices;
     ADEBUG << "Available choices are:";
     for (int j = 0; j < static_cast<int>(available_s_bounds.size()); ++j) {

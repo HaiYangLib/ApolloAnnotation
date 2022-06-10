@@ -101,6 +101,7 @@ bool Obstacle::IsStill() {
 
 bool Obstacle::IsSlow() {
   const Feature& feature = latest_feature();
+  // FLAGS_slow_obstacle_speed_threshold: 2.0
   return feature.speed() < FLAGS_slow_obstacle_speed_threshold;
 }
 
@@ -153,7 +154,16 @@ bool Obstacle::Insert(const PerceptionObstacle& perception_obstacle,
     return false;
   }
 
+  /**
+   * 在下面文件中定义modules\prediction\proto\feature.proto
+   * message Feature {
+   *  // Obstacle ID
+   *  optional int32 id = 1;
+   * }
+   * **/
+
   // Set ID, Type, and Status of the feature.
+  // 为feature设置id,type,status
   Feature feature;
   if (!SetId(perception_obstacle, &feature, prediction_obstacle_id)) {
     return false;
@@ -164,6 +174,7 @@ bool Obstacle::Insert(const PerceptionObstacle& perception_obstacle,
   SetStatus(perception_obstacle, timestamp, &feature);
 
   // Set obstacle lane features
+  // 非行人
   if (type_ != PerceptionObstacle::PEDESTRIAN) {
     SetCurrentLanes(&feature);
     SetNearbyLanes(&feature);
@@ -180,6 +191,7 @@ bool Obstacle::Insert(const PerceptionObstacle& perception_obstacle,
   }
 
   // Insert obstacle feature to history
+  // 将该障碍物的特征插入到历史队列中
   InsertFeatureToHistory(feature);
 
   // Set obstacle motion status
@@ -629,13 +641,14 @@ bool Obstacle::HasJunctionFeatureWithExits() const {
 void Obstacle::SetCurrentLanes(Feature* feature) {
   Eigen::Vector2d point(feature->position().x(), feature->position().y());
   double heading = feature->velocity_heading();
-  int max_num_lane = FLAGS_max_num_current_lane;
-  double max_angle_diff = FLAGS_max_lane_angle_diff;
-  double lane_search_radius = FLAGS_lane_search_radius;
+  int max_num_lane = FLAGS_max_num_current_lane; //2
+  double max_angle_diff = FLAGS_max_lane_angle_diff;// M_PI / 3.0
+  double lane_search_radius = FLAGS_lane_search_radius; //3
+  // junction_search_radius:1.0
   if (PredictionMap::InJunction(point, FLAGS_junction_search_radius)) {
-    max_num_lane = FLAGS_max_num_current_lane_in_junction;
-    max_angle_diff = FLAGS_max_lane_angle_diff_in_junction;
-    lane_search_radius = FLAGS_lane_search_radius_in_junction;
+    max_num_lane = FLAGS_max_num_current_lane_in_junction; // 3 
+    max_angle_diff = FLAGS_max_lane_angle_diff_in_junction; // M_PI / 4.0
+    lane_search_radius = FLAGS_lane_search_radius_in_junction; //15
   }
   std::vector<std::shared_ptr<const LaneInfo>> current_lanes;
   PredictionMap::OnLane(current_lanes_, point, heading, lane_search_radius,
@@ -812,14 +825,16 @@ void Obstacle::BuildLaneGraph() {
     ADEBUG << "Not build lane graph for still obstacle";
     return;
   }
+
   if (feature->lane().lane_graph().lane_sequence_size() > 0) {
     ADEBUG << "Not build lane graph for an old obstacle";
     return;
   }
+  
   double speed = feature->speed();
-  double t_max = FLAGS_prediction_trajectory_time_length;
+  double t_max = FLAGS_prediction_trajectory_time_length;// 8
   auto estimated_move_distance = speed * t_max;
-
+  // min_prediction_trajectory_spatial_length:100
   double road_graph_search_distance = std::fmax(
       estimated_move_distance, FLAGS_min_prediction_trajectory_spatial_length);
 
@@ -844,6 +859,7 @@ void Obstacle::BuildLaneGraph() {
     if (lane_graph.lane_sequence_size() > 0) {
       ++curr_lane_count;
     }
+    
     for (const auto& lane_seq : lane_graph.lane_sequence()) {
       if (is_in_junction && !HasJunctionExitLane(lane_seq, exit_lane_id_set)) {
         continue;
@@ -1431,6 +1447,7 @@ bool Obstacle::ReceivedOlderMessage(const double timestamp) const {
 void Obstacle::DiscardOutdatedHistory() {
   auto num_of_frames = feature_history_.size();
   const double latest_ts = feature_history_.front().timestamp();
+  // DEFINE_double(max_history_time, 7.0, "Obstacles' maximal historical time.");
   while (latest_ts - feature_history_.back().timestamp() >=
          FLAGS_max_history_time) {
     feature_history_.pop_back();

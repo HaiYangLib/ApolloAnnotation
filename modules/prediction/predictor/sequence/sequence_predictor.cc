@@ -75,6 +75,7 @@ void SequencePredictor::FilterLaneSequences(
    * so that we will ignore them and drive normally unless
    * they really kick into our lane.
    */
+  // 在lane_sequence的类型和障碍物与其的距离上筛选
   for (int i = 0; i < num_lane_sequence; ++i) {
     const LaneSequence& sequence = lane_graph.lane_sequence(i);
     if (sequence.lane_type() == apollo::hdmap::Lane::PARKING) {
@@ -92,10 +93,13 @@ void SequencePredictor::FilterLaneSequences(
     }
 
     // The obstacle has interference with ADC within a small distance
+    // 计算出该障碍物与主车之间的距离
     double distance = GetLaneChangeDistanceWithADC(sequence, ego_vehicle_ptr,
                                                    adc_trajectory_container);
     ADEBUG << "Distance to ADC " << std::fixed << std::setprecision(6)
            << distance;
+    // lane_change_dist:10   
+    // 障碍物与主车之间的距离较近
     if (distance > 0.0 && distance < FLAGS_lane_change_dist) {
       bool obs_within_its_own_lane = true;
       for (int j = 0; j < feature.polygon_point_size(); j++) {
@@ -115,7 +119,8 @@ void SequencePredictor::FilterLaneSequences(
         double left = 0.0;
         double right = 0.0;
         lane_info->GetWidth(lane_s, &left, &right);
-
+        
+        // 没有交集
         if (lane_l > left || lane_l < -right) {
           obs_within_its_own_lane = false;
           break;
@@ -152,9 +157,10 @@ void SequencePredictor::FilterLaneSequences(
       change.second = probability;
     }
   }
-
+  // ane_sequence_threshold_cruise:0.5
   double lane_sequence_threshold = FLAGS_lane_sequence_threshold_cruise;
   if (feature.has_junction_feature()) {
+    // lane_sequence_threshold_junction:0.5
     lane_sequence_threshold = FLAGS_lane_sequence_threshold_junction;
   }
 

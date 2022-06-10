@@ -242,7 +242,9 @@ class LaneInfo {
   std::vector<double> headings_;
   std::vector<apollo::common::math::LineSegment2d> segments_;
   std::vector<double> accumulated_s_;
+
   std::vector<std::string> overlap_ids_;
+  
   std::vector<OverlapInfoConstPtr> overlaps_;
   std::vector<OverlapInfoConstPtr> cross_lanes_;
   std::vector<OverlapInfoConstPtr> signals_;
@@ -254,6 +256,7 @@ class LaneInfo {
   std::vector<OverlapInfoConstPtr> speed_bumps_;
   std::vector<OverlapInfoConstPtr> parking_spaces_;
   std::vector<OverlapInfoConstPtr> pnc_junctions_;
+
   double total_length_ = 0.0;
   std::vector<SampledWidth> sampled_left_width_;
   std::vector<SampledWidth> sampled_right_width_;

@@ -63,7 +63,24 @@ void PedestrianInteractionEvaluator::LoadModel() {
     ADEBUG << "CUDA is available";
     device_ = torch::Device(torch::kCUDA);
   }
-
+  /**
+   * DEFINE_string(torch_pedestrian_interaction_position_embedding_file,
+              "/apollo/modules/prediction/data/"
+              "pedestrian_interaction_position_embedding.pt",
+              "pedestrian interaction position embedding");
+    DEFINE_string(torch_pedestrian_interaction_social_embedding_file,
+                  "/apollo/modules/prediction/data/"
+                  "pedestrian_interaction_social_embedding.pt",
+                  "pedestrian interaction social embedding");
+    DEFINE_string(torch_pedestrian_interaction_single_lstm_file,
+                  "/apollo/modules/prediction/data/"
+                  "pedestrian_interaction_single_lstm.pt",
+                  "pedestrian interaction single lstm");
+    DEFINE_string(torch_pedestrian_interaction_prediction_layer_file,
+                  "/apollo/modules/prediction/data/"
+                  "pedestrian_interaction_prediction_layer.pt",
+                  "pedestrian interaction prediction layer");
+   * **/
   torch_position_embedding_ = torch::jit::load(
       FLAGS_torch_pedestrian_interaction_position_embedding_file, device_);
   torch_social_embedding_ = torch::jit::load(
@@ -76,6 +93,10 @@ void PedestrianInteractionEvaluator::LoadModel() {
 
 torch::Tensor PedestrianInteractionEvaluator::GetSocialPooling() {
   // TODO(kechxu) implement more sophisticated logics
+  /**
+   * kGridSize = 2,
+   * kHiddenSize = 128
+   * **/
   return torch::zeros({1, kGridSize * kGridSize * kHiddenSize});
 }
 
@@ -125,6 +146,7 @@ bool PedestrianInteractionEvaluator::Evaluate(
   double pos_y = feature_values[3];
   double rel_x = 0.0;
   double rel_y = 0.0;
+  // kHiddenStateUpdateCycle=4
   if (obstacle_ptr->history_size() > kHiddenStateUpdateCycle - 1) {
     rel_x = obstacle_ptr->latest_feature().position().x() -
             obstacle_ptr->feature(3).position().x();
@@ -187,7 +209,7 @@ bool PedestrianInteractionEvaluator::Evaluate(
   start_point->mutable_path_point()->set_theta(latest_feature_ptr->theta());
   start_point->set_v(latest_feature_ptr->speed());
   start_point->set_relative_time(0.0);
-
+  // kShortTermPredictionPointNum=5
   for (int i = 1; i <= kShortTermPredictionPointNum; ++i) {
     double prev_x = trajectory->trajectory_point(i - 1).path_point().x();
     double prev_y = trajectory->trajectory_point(i - 1).path_point().y();
@@ -206,6 +228,7 @@ bool PedestrianInteractionEvaluator::Evaluate(
     torch_position[0][1] = curr_rel_y;
     std::vector<torch::jit::IValue> position_embedding_inputs;
     position_embedding_inputs.push_back(std::move(torch_position.to(device_)));
+    // step1
     torch::Tensor position_embedding =
         torch_position_embedding_.forward(position_embedding_inputs)
             .toTensor()
@@ -225,11 +248,15 @@ bool PedestrianInteractionEvaluator::Evaluate(
     }
     std::vector<torch::jit::IValue> lstm_inputs;
     lstm_inputs.push_back(std::move(lstm_input.to(device_)));
+    
+    // step2
     auto lstm_out_tuple = torch_single_lstm_.forward(lstm_inputs).toTuple();
     ht = lstm_out_tuple->elements()[0].toTensor();
     ct = lstm_out_tuple->elements()[1].toTensor();
     std::vector<torch::jit::IValue> prediction_inputs;
     prediction_inputs.push_back(ht[0]);
+
+    // step3
     auto pred_out_tensor = torch_prediction_layer_.forward(prediction_inputs)
                                .toTensor()
                                .to(torch::kCPU);
@@ -242,6 +269,7 @@ bool PedestrianInteractionEvaluator::Evaluate(
     point->set_v(latest_feature_ptr->speed());
     point->mutable_path_point()->set_theta(
         latest_feature_ptr->velocity_heading());
+    // kShortTermPredictionTimeResolution:0.4    
     point->set_relative_time(kShortTermPredictionTimeResolution *
                              static_cast<double>(i));
   }

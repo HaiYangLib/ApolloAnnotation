@@ -326,6 +326,7 @@ class Obstacle {
   void SetClusters(ObstacleClusters* clusters_ptr);
 
  private:
+  // -1
   int id_ = FLAGS_ego_vehicle_id;
 
   perception::PerceptionObstacle::Type type_ =

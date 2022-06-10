@@ -49,8 +49,9 @@ bool InteractionPredictor::Predict(
   CHECK_NOTNULL(obstacle);
   CHECK_GT(obstacle->history_size(), 0);
 
+  // DrawLaneSequenceTrajectoryPoints:1
   BuildADCTrajectory(adc_trajectory_container,
-                     FLAGS_collision_cost_time_resolution);
+                     FLAGS_collision_cost_time_resolution); //1
 
   obstacle->SetPredictorType(predictor_type_);
 

@@ -56,6 +56,7 @@ bool LaneSequencePredictor::Predict(
   if (feature.lane().has_lane_feature()) {
     lane_id = feature.lane().lane_feature().lane_id();
   }
+  
   int num_lane_sequence = feature.lane().lane_graph().lane_sequence_size();
   std::vector<bool> enable_lane_sequence(num_lane_sequence, true);
   Obstacle* ego_vehicle_ptr =
@@ -142,9 +143,9 @@ void LaneSequencePredictor::DrawLaneSequenceTrajectoryPoints(
     AERROR << "Failed in getting lane s and lane l";
     return;
   }
-  double approach_rate = FLAGS_go_approach_rate;
+  double approach_rate = FLAGS_go_approach_rate; // 0.995
   if (!lane_sequence.vehicle_on_lane()) {
-    approach_rate = FLAGS_cutin_approach_rate;
+    approach_rate = FLAGS_cutin_approach_rate; //0.95
   }
   size_t total_num = static_cast<size_t>(total_time / period);
   for (size_t i = 0; i < total_num; ++i) {

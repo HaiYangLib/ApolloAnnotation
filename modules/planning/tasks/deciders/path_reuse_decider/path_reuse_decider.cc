@@ -60,6 +60,7 @@ Status PathReuseDecider::Process(Frame* const frame,
                                  ->planning_status()
                                  .scenario()
                                  .scenario_type();
+  // a) 当前处于非LaneFollow_Scenario场景，置位false                               
   if (scenario_type != ScenarioConfig::LANE_FOLLOW) {
     ADEBUG << "skipping reusing path: not in LANE_FOLLOW scenario";
     reference_line_info->set_path_reusable(false);
@@ -73,6 +74,7 @@ Status PathReuseDecider::Process(Frame* const frame,
   ADEBUG << "lane change status: " << lane_change_status->ShortDebugString();
 
   // skip path reuse if not in_change_lane
+  // b) 当前未处于IN_CHANGE_LANE状态，置位false;
   if (lane_change_status->status() != ChangeLaneStatus::IN_CHANGE_LANE &&
       !FLAGS_enable_reuse_path_in_lane_follow) {
     ADEBUG << "skipping reusing path: not in lane_change";

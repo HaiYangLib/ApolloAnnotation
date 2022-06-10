@@ -274,7 +274,7 @@ bool PncMap::UpdateRoutingResponse(const routing::RoutingResponse &routing) {
    * std::vector<RouteIndex> route_indices_;
    *
    * 其中
-   * segment=LaneSegment的id
+   * segment=LaneSegment
    * index={RoadSegment索引, Passage索引, LaneSegment索引}
    * **/
   route_indices_.clear();
@@ -323,7 +323,6 @@ bool PncMap::UpdateRoutingResponse(const routing::RoutingResponse &routing) {
   for (size_t j = 0; j < route_indices_.size(); ++j) {
     /**
      * request_waypoints.Get(i))是否在route_indices_[j].segment中
-
      * **/
     while (i < request_waypoints.size() &&
            RouteSegments::WithinLaneSegment(route_indices_[j].segment,
@@ -437,8 +436,8 @@ std::vector<int> PncMap::GetNeighborPassages(const routing::RoadSegment &road,
   CHECK_GE(start_passage, 0);
   CHECK_LE(start_passage, road.passage_size());
   std::vector<int> result;
-
   // 当前通道(Passage)
+
   const auto &source_passage = road.passage(start_passage);
   result.emplace_back(start_passage);
 
@@ -584,16 +583,21 @@ bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
    *    std::array<int, 3> index;
    *  };
    *  std::vector<RouteIndex> route_indices_;
+   * 
+   *  RouteIndex: 
+   *  segment=LaneSegment
+   *  index={RoadSegment索引, Passage索引, LaneSegment索引}
    * **/
-  const auto &route_index = route_indices_[adc_route_index_].index;
-  const int road_index = route_index[0];     // RoadSegment
-  const int passage_index = route_index[1];  // Passage
+  const auto &route_index = route_indices_[adc_route_index_].index;//RouteIndex.index
+  const int road_index = route_index[0];     // RoadSegment索引
+  const int passage_index = route_index[1];  //Passage索引
   const auto &road = routing_.road(road_index);
   // Raw filter to find all neighboring passages
   /**
    * 查询当前位置下，附近的通道(passage)
    *
    * 步骤2：计算临近通道
+   * drive_passages:  std::vector<int>
    * **/
   auto drive_passages = GetNeighborPassages(road, passage_index);
 
@@ -666,7 +670,7 @@ bool PncMap::GetRouteSegments(const VehicleState &vehicle_state,
     const std::string route_segment_id = absl::StrCat(road_index, "_", index);
     route_segments->back().SetId(route_segment_id);
     route_segments->back().SetStopForDestination(stop_for_destination_);
-    // 设置上时刻的状态
+    // 设置上时刻的状态,车辆如何运行才能到达这个RouteSegments
     if (index == passage_index) {
       route_segments->back().SetIsOnSegment(true);
       route_segments->back().SetPreviousAction(routing::FORWARD);
@@ -825,7 +829,8 @@ bool PncMap::ExtendSegments(const RouteSegments &segments,
 }
 
 /**
- * 注意这个s是投影点在passage段起点的累计距离，而非整个road的累计距离)，扩展后前向增加forward_length，
+ * 注意这个s是投影点在passage段起点的累计距离，而非整个road的累计距离)，
+ * 扩展后前向增加forward_length，
  * 后向增加backward_length
  * **/
 bool PncMap::ExtendSegments(const RouteSegments &segments, double start_s,
@@ -842,6 +847,7 @@ bool PncMap::ExtendSegments(const RouteSegments &segments, double start_s,
     AERROR << "start_s(" << start_s << " >= end_s(" << end_s << ")";
     return false;
   }
+  
   std::unordered_set<std::string> unique_lanes;
   static constexpr double kRouteEpsilon = 1e-3;
   // Extend the trajectory towards the start of the trajectory.
@@ -1016,3 +1022,7 @@ void PncMap::AppendLaneToPoints(LaneInfoConstPtr lane, const double start_s,
 
 }  // namespace hdmap
 }  // namespace apollo
+
+
+
+ 

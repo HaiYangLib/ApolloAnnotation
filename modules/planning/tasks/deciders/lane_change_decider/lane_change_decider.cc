@@ -138,6 +138,7 @@ Status LaneChangeDecider::Process(
     }
     return Status::OK();
   } else {  // has change lane in reference lines.
+    // 得到当前参考线的id
     auto current_path_id = GetCurrentPathId(*reference_line_info);
     if (current_path_id.empty()) {
       const std::string msg = "The vehicle is not on any reference line";
@@ -157,7 +158,8 @@ Status LaneChangeDecider::Process(
       return Status::OK();
     } else if (prev_status->status() == ChangeLaneStatus::CHANGE_LANE_FAILED) {
       // TODO(SHU): add an optimization_failure counter to enter
-      // change_lane_failed status
+      // change_lane_failed 
+      // change_lane_fail_freeze_time :1
       if (now - prev_status->timestamp() <
           lane_change_decider_config.change_lane_fail_freeze_time()) {
         // RemoveChangeLane(reference_line_info);
@@ -328,6 +330,7 @@ bool LaneChangeDecider::IsClearToChangeLane(
 
   for (const auto* obstacle :
        reference_line_info->path_decision()->obstacles().Items()) {
+    // a) 只对动态障碍物进行处理，忽略虚拟障碍物和静态障碍物；     
     if (obstacle->IsVirtual() || obstacle->IsStatic()) {
       ADEBUG << "skip one virtual or static obstacle";
       continue;
@@ -338,6 +341,7 @@ bool LaneChangeDecider::IsClearToChangeLane(
     double start_l = std::numeric_limits<double>::max();
     double end_l = -std::numeric_limits<double>::max();
 
+    // b) 对于动态障碍物，先进行投影，获取S和L值
     for (const auto& p : obstacle->PerceptionPolygon().points()) {
       SLPoint sl_point;
       reference_line_info->reference_line().XYToSL(p, &sl_point);
@@ -348,6 +352,7 @@ bool LaneChangeDecider::IsClearToChangeLane(
       end_l = std::fmax(end_l, sl_point.l());
     }
 
+    // c) 忽略换道目标参考线上2.5米之外的障碍物;
     if (reference_line_info->IsChangeLanePath()) {
       static constexpr double kLateralShift = 2.5;
       if (end_l < -kLateralShift || start_l > kLateralShift) {
@@ -358,6 +363,7 @@ bool LaneChangeDecider::IsClearToChangeLane(
     // Raw estimation on whether same direction with ADC or not based on
     // prediction trajectory
     bool same_direction = true;
+    // d) 对于需要考虑的障碍物进行方向粗略计算，评估是否和自车同向；
     if (obstacle->HasTrajectory()) {
       double obstacle_moving_direction =
           obstacle->Trajectory().trajectory_point(0).path_point().theta();
@@ -383,6 +389,7 @@ bool LaneChangeDecider::IsClearToChangeLane(
 
     double kForwardSafeDistance = 0.0;
     double kBackwardSafeDistance = 0.0;
+    // e) 根据方向，计算纵向上的安全距离，考虑了速度差，比较直观。分为前方和后方两个维度。
     if (same_direction) {
       kForwardSafeDistance =
           std::fmax(kForwardMinSafeDistanceOnSameDirection,
@@ -396,7 +403,18 @@ bool LaneChangeDecider::IsClearToChangeLane(
                     (ego_v + obstacle->speed()) * kSafeTimeOnOppositeDirection);
       kBackwardSafeDistance = kBackwardMinSafeDistanceOnOppositeDirection;
     }
-
+    /**
+     * f) 根据前面计算的阈值，判断障碍物是否安全，采用的是滞回区间的方法，
+     * 如果障碍物小于安全距离，laneChangeBlocking为true。
+     * 如果障碍物大于安全距离，laneChangeBlocking为false。
+     * 通过滞回区间进行滤波。一旦发现有block的障碍物，函数就返回，
+     * 就认为该Reference 非clear(安全)。
+     *   static bool HysteresisFilter(const double obstacle_distance,
+                               const double safe_distance,
+                               const double distance_buffer,
+                               const bool is_obstacle_blocking);
+     * 
+     * **/
     if (HysteresisFilter(ego_start_s - end_s, kBackwardSafeDistance,
                          kDistanceBuffer, obstacle->IsLaneChangeBlocking()) &&
         HysteresisFilter(start_s - ego_end_s, kForwardSafeDistance,

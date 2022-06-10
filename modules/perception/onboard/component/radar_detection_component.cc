@@ -172,6 +172,7 @@ bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
         << Clock::NowInSeconds();
 
   /**
+   * 
    * class SensorFrameMessage {
    * public:
    *   apollo::common::ErrorCode error_code_ = apollo::common::ErrorCode::OK;
@@ -184,7 +185,8 @@ bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
    *   base::FramePtr frame_;
    *   ProcessStage process_stage_ = ProcessStage::UNKNOWN_STAGE;
    * };
-   *  base::FramePtr frame_;保存这有价值的数据
+   * 
+   * base::FramePtr frame_;保存这有价值的数据
    *  **/
   auto out_message = std::make_shared<SensorFrameMessage>();
 
@@ -318,7 +320,6 @@ bool RadarDetectionComponent::InternalProc(
    * 1.筛选掉时间上不符合的点
    * 2.重新分配各个点的id
    * 3.矫正该帧时间
-   * 
    * **/
   // 步骤1
   radar_preprocessor_->Preprocess(raw_obstacles, preprocessor_options,

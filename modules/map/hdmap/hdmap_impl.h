@@ -427,7 +427,7 @@ class HDMapImpl {
   PNCJunctionTable pnc_junction_table_;
   RSUTable rsu_table_;
 
-  std::vector<LaneSegmentBox> lane_segment_boxes_;
+  std::vector<LaneSegmentBox>  lane_segment_boxes_;
   std::unique_ptr<LaneSegmentKDTree> lane_segment_kdtree_;
 
   std::vector<JunctionPolygonBox> junction_polygon_boxes_;

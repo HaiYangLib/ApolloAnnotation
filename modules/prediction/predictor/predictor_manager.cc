@@ -167,8 +167,14 @@ void PredictorManager::PredictObstacles(
       prediction_obstacle.set_is_static(true);
     }
 
+    /**
+     * DEFINE_double(prediction_trajectory_time_length, 8.0,
+              "Time length of predicted trajectory (in seconds)");
+     * 
+     * **/
     prediction_obstacle.set_predicted_period(
         FLAGS_prediction_trajectory_time_length);
+
     prediction_obstacle.mutable_perception_obstacle()->CopyFrom(
         perception_obstacle);
 
@@ -252,6 +258,7 @@ void PredictorManager::PredictObstacle(
         break;
       }
       case PerceptionObstacle::PEDESTRIAN: {
+        // 使用FreeMovePredictor
         RunPedestrianPredictor(adc_trajectory_container, obstacle,
                                obstacles_container);
         break;
@@ -396,10 +403,13 @@ void PredictorManager::RunVehiclePredictor(
   Predictor* predictor = nullptr;
   if (obstacle->IsCaution()) {
     if (obstacle->IsNearJunction()) {
+      // INTERACTION_PREDICTOR
       predictor = GetPredictor(vehicle_in_junction_caution_predictor_);
     } else if (obstacle->IsOnLane()) {
+      // MOVE_SEQUENCE_PREDICTOR
       predictor = GetPredictor(vehicle_on_lane_caution_predictor_);
     } else {
+      // EXTRAPOLATION_PREDICTOR
       predictor = GetPredictor(vehicle_default_caution_predictor_);
     }
     CHECK_NOTNULL(predictor);
@@ -413,11 +423,14 @@ void PredictorManager::RunVehiclePredictor(
   }
 
   if (!obstacle->IsOnLane()) {
+    // FREE_MOVE_PREDICTOR
     predictor = GetPredictor(vehicle_off_lane_predictor_);
   } else if (obstacle->HasJunctionFeatureWithExits() &&
              !obstacle->IsCloseToJunctionExit()) {
+    // LANE_SEQUENCE_PREDICTOR          
     predictor = GetPredictor(vehicle_in_junction_predictor_);
   } else {
+    // LANE_SEQUENCE_PREDICTOR
     predictor = GetPredictor(vehicle_on_lane_predictor_);
   }
 
@@ -436,6 +449,7 @@ void PredictorManager::RunPedestrianPredictor(
     const ADCTrajectoryContainer* adc_trajectory_container, Obstacle* obstacle,
     ObstaclesContainer* obstacles_container) {
   Predictor* predictor = nullptr;
+  // FREE_MOVE_PREDICTOR
   predictor = GetPredictor(pedestrian_predictor_);
   if (predictor == nullptr) {
     AERROR << "Nullptr found for obstacle [" << obstacle->id() << "]";
@@ -449,8 +463,10 @@ void PredictorManager::RunCyclistPredictor(
     ObstaclesContainer* obstacles_container) {
   Predictor* predictor = nullptr;
   if (obstacle->IsOnLane()) {
+    // LANE_SEQUENCE_PREDICTOR
     predictor = GetPredictor(cyclist_on_lane_predictor_);
   } else {
+    // FREE_MOVE_PREDICTOR
     predictor = GetPredictor(cyclist_off_lane_predictor_);
   }
   if (predictor == nullptr) {
@@ -465,8 +481,10 @@ void PredictorManager::RunDefaultPredictor(
     ObstaclesContainer* obstacles_container) {
   Predictor* predictor = nullptr;
   if (obstacle->IsOnLane()) {
+    // LANE_SEQUENCE_PREDICTOR
     predictor = GetPredictor(default_on_lane_predictor_);
   } else {
+    // FREE_MOVE_PREDICTOR
     predictor = GetPredictor(default_off_lane_predictor_);
   }
   if (predictor == nullptr) {

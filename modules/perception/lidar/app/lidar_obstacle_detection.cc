@@ -240,7 +240,7 @@ LidarProcessResult LidarObstacleDetection::ProcessCommon(
   DetectionOptions detection_options;
 
   /**
-   * 使用PointPillarsDetection进行detect
+   * 使用 PointPillarsDetection 进行detect
    * 具体的实现过程由PointPillarsDetection提供
    * **/
   if (!detector_->Detect(detection_options, frame)) {

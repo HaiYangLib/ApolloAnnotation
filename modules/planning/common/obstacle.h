@@ -251,7 +251,6 @@ class Obstacle {
   std::vector<ObjectDecisionType> decisions_;
   std::vector<std::string> decider_tags_;
   SLBoundary sl_boundary_;
-
   STBoundary reference_line_st_boundary_;
   STBoundary path_st_boundary_;
 

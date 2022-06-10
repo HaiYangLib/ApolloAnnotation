@@ -147,10 +147,12 @@ void MessageProcess::ContainerProcess(
   }
 
   // Insert perception_obstacles
+  // 步骤1：添加障碍物,即将PerceptionObstacle类型封装成prediction::Obstacle类型
   ptr_obstacles_container->Insert(perception_obstacles);
 
   ObstaclesPrioritizer obstacles_prioritizer(container_manager);
   // Ignore some obstacles
+  
   obstacles_prioritizer.AssignIgnoreLevel();
 
   // Scenario analysis
@@ -165,12 +167,15 @@ void MessageProcess::ContainerProcess(
   }
 
   // Build lane graph
+  // 步骤2：设置路网
   ptr_obstacles_container->BuildLaneGraph();
 
   // Assign CautionLevel for obstacles
+  // 步骤3：为障碍物指定警戒级别
   obstacles_prioritizer.AssignCautionLevel();
 
   // Analyze RightOfWay for the caution obstacles
+  // 步骤4：分析警告障碍的通行权
   RightOfWay::Analyze(container_manager.get());
 }
 
@@ -193,6 +198,17 @@ void MessageProcess::OnPerception(
   CHECK_NOTNULL(ptr_ego_trajectory_container);
 
   // Insert features to FeatureOutput for offline_mode
+  /**
+   * DEFINE_int32(prediction_offline_mode, 0,
+             "0: online mode, no dump file"
+             "1: dump feature proto to feature.*.bin"
+             "2: dump data for learning to datalearn.*.bin"
+             "3: dump predicted trajectory to predict_result.*.bin"
+             "4: dump frame environment info to frame_env.*.bin"
+             "5: dump data for tuning to datatuning.*.bin");
+
+    kDumpFeatureProto=1         
+   * **/
   if (FLAGS_prediction_offline_mode == PredictionConstants::kDumpFeatureProto) {
     for (const int id :
          ptr_obstacles_container->curr_frame_movable_obstacle_ids()) {
@@ -220,11 +236,17 @@ void MessageProcess::OnPerception(
 
   // Make evaluations
   evaluator_manager->Run(ptr_obstacles_container);
+
+  /**
+   * kDumpDataForLearning = 2
+   * kDumpFrameEnv = 4
+   * **/
   if (FLAGS_prediction_offline_mode ==
           PredictionConstants::kDumpDataForLearning ||
       FLAGS_prediction_offline_mode == PredictionConstants::kDumpFrameEnv) {
     return;
   }
+  
   // Make predictions
   predictor_manager->Run(perception_obstacles, ptr_ego_trajectory_container,
                          ptr_obstacles_container);

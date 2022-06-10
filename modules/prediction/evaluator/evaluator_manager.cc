@@ -191,6 +191,8 @@ Evaluator* EvaluatorManager::GetEvaluator(
 }
 
 void EvaluatorManager::Run(ObstaclesContainer* obstacles_container) {
+  // DEFINE_bool(enable_semantic_map, true, 
+  //             "If enable semantic map on prediction");
   if (FLAGS_enable_semantic_map ||
       FLAGS_prediction_offline_mode == PredictionConstants::kDumpFrameEnv) {
     size_t max_num_frame = 10;
@@ -206,7 +208,7 @@ void EvaluatorManager::Run(ObstaclesContainer* obstacles_container) {
   }
 
   std::vector<Obstacle*> dynamic_env;
-
+  // DEFINE_bool(enable_multi_thread, true, "If enable multi-thread.");
   if (FLAGS_enable_multi_thread) {
     IdObstacleListMap id_obstacle_map;
     GroupObstaclesByObstacleIds(obstacles_container, &id_obstacle_map);
@@ -224,6 +226,7 @@ void EvaluatorManager::Run(ObstaclesContainer* obstacles_container) {
       if (obstacle == nullptr) {
         continue;
       }
+      
       if (obstacle->IsStill()) {
         ADEBUG << "Ignore still obstacle [" << id << "] in evaluator_manager";
         continue;
@@ -243,10 +246,13 @@ void EvaluatorManager::EvaluateObstacle(Obstacle* obstacle,
     case PerceptionObstacle::VEHICLE: {
       if (obstacle->IsCaution() && !obstacle->IsSlow()) {
         if (obstacle->IsNearJunction()) {
+          // JUNCTION_MAP_EVALUATOR
           evaluator = GetEvaluator(vehicle_in_junction_caution_evaluator_);
         } else if (obstacle->IsOnLane()) {
+          // CRUISE_MLP_EVALUATOR
           evaluator = GetEvaluator(vehicle_on_lane_caution_evaluator_);
         } else {
+          // SEMANTIC_LSTM_EVALUATOR
           evaluator = GetEvaluator(vehicle_default_caution_evaluator_);
         }
         CHECK_NOTNULL(evaluator);
@@ -261,8 +267,10 @@ void EvaluatorManager::EvaluateObstacle(Obstacle* obstacle,
       // if obstacle is not caution or caution_evaluator run failed
       if (obstacle->HasJunctionFeatureWithExits() &&
           !obstacle->IsCloseToJunctionExit()) {
+        // JUNCTION_MLP_EVALUATOR    
         evaluator = GetEvaluator(vehicle_in_junction_evaluator_);
       } else if (obstacle->IsOnLane()) {
+        // CRUISE_MLP_EVALUATOR
         evaluator = GetEvaluator(vehicle_on_lane_evaluator_);
       } else {
         ADEBUG << "Obstacle: " << obstacle->id()
@@ -279,6 +287,7 @@ void EvaluatorManager::EvaluateObstacle(Obstacle* obstacle,
     }
     case PerceptionObstacle::BICYCLE: {
       if (obstacle->IsOnLane()) {
+        // CYCLIST_KEEP_LANE_EVALUATOR
         evaluator = GetEvaluator(cyclist_on_lane_evaluator_);
         CHECK_NOTNULL(evaluator);
         evaluator->Evaluate(obstacle, obstacles_container);
@@ -290,6 +299,7 @@ void EvaluatorManager::EvaluateObstacle(Obstacle* obstacle,
               PredictionConstants::kDumpDataForLearning ||
           obstacle->latest_feature().priority().priority() ==
               ObstaclePriority::CAUTION) {
+        // SEMANTIC_LSTM_EVALUATOR        
         evaluator = GetEvaluator(pedestrian_evaluator_);
         CHECK_NOTNULL(evaluator);
         evaluator->Evaluate(obstacle, obstacles_container);
@@ -298,6 +308,7 @@ void EvaluatorManager::EvaluateObstacle(Obstacle* obstacle,
     }
     default: {
       if (obstacle->IsOnLane()) {
+        // MLP_EVALUATOR
         evaluator = GetEvaluator(default_on_lane_evaluator_);
         CHECK_NOTNULL(evaluator);
         evaluator->Evaluate(obstacle, obstacles_container);

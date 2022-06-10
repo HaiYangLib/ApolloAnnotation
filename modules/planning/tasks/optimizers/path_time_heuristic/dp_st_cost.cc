@@ -115,7 +115,7 @@ double DpStCost::GetObstacleCost(const StGraphPoint& st_graph_point) {
   const double t = st_graph_point.point().t();
 
   double cost = 0.0;
-
+  // false
   if (FLAGS_use_st_drivable_boundary) {
     // TODO(Jiancheng): move to configs
     static constexpr double boundary_resolution = 0.1;
@@ -140,21 +140,28 @@ double DpStCost::GetObstacleCost(const StGraphPoint& st_graph_point) {
     // Stop obstacles are assumed to have a safety margin when mapping them out,
     // so repelling force in dp st is not needed as it is designed to have adc
     // stop right at the stop distance we design in prior mapping process
+    // 在绘制停车障碍物时，假设停车障碍物具有安全裕度，
+    // 因此，不需要dp st中的排斥力，
+    // 因为它的设计目的是使adc在我们在先前映射过程中设计的停止距离处停止
     if (obstacle->LongitudinalDecision().has_stop()) {
       continue;
     }
 
     auto boundary = obstacle->path_st_boundary();
 
+    // speed_lon_decision_horizon:200
     if (boundary.min_s() > FLAGS_speed_lon_decision_horizon) {
       continue;
     }
+
     if (t < boundary.min_t() || t > boundary.max_t()) {
       continue;
     }
+
     if (boundary.IsPointInBoundary(st_graph_point.point())) {
       return kInf;
     }
+
     double s_upper = 0.0;
     double s_lower = 0.0;
 
@@ -229,6 +236,10 @@ double DpStCost::GetSpeedCost(const STPoint& first, const STPoint& second,
             -det_speed * unit_t_;
   }
 
+  /**
+   * DEFINE_bool(enable_dp_reference_speed, true,
+            "True to penalize dp result towards default cruise speed");
+   * **/
   if (FLAGS_enable_dp_reference_speed) {
     double diff_speed = speed - cruise_speed;
     cost += config_.reference_speed_penalty() * config_.default_speed_cost() *

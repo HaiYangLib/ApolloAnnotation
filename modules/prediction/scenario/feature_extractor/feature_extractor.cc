@@ -89,6 +89,7 @@ void FeatureExtractor::ExtractEgoLaneFeatures(
     ADEBUG << "Ego vehicle is not on any lane.";
     return;
   }
+  
   ADEBUG << "Ego vehicle is on lane [" << ptr_ego_lane->id().id() << "]";
   double curr_lane_s = 0.0;
   double curr_lane_l = 0.0;
@@ -160,11 +161,16 @@ void FeatureExtractor::ExtractFrontJunctionFeatures(
     AERROR << "Null ego trajectory container";
     return;
   }
+  
   JunctionInfoPtr junction = ego_trajectory_container->ADCJunction();
   if (junction == nullptr) {
     return;
   }
   // Only consider junction have overlap with signal or stop_sign
+  /**
+   * DEFINE_bool(enable_all_junction, false,
+            "If consider all junction with junction_mlp_model.");
+   * **/
   bool need_consider = FLAGS_enable_all_junction;
   for (const auto& overlap_id : junction->junction().overlap_id()) {
     if (PredictionMap::OverlapById(overlap_id.id()) != nullptr) {
@@ -177,6 +183,7 @@ void FeatureExtractor::ExtractFrontJunctionFeatures(
       }
     }
   }
+  
   if (need_consider) {
     ptr_environment_features->SetFrontJunction(
         junction->id().id(), ego_trajectory_container->ADCDistanceToJunction());
@@ -190,6 +197,15 @@ LaneInfoPtr FeatureExtractor::GetEgoLane(const common::Point3D& position,
   position_enu.set_y(position.y());
   position_enu.set_z(position.z());
 
+  /**
+   * DEFINE_double(lane_distance_threshold, 3.0,
+              "The threshold for distance to ego/neighbor lane "
+              "in feature extraction");
+              
+     DEFINE_double(lane_angle_difference_threshold, M_PI * 0.25,
+              "The threshold for distance to ego/neighbor lane "
+              "in feature extraction");         
+   * **/
   return PredictionMap::GetMostLikelyCurrentLane(
       position_enu, FLAGS_lane_distance_threshold, heading,
       FLAGS_lane_angle_difference_threshold);

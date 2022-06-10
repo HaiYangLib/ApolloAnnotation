@@ -726,7 +726,7 @@ double Path::GetSFromIndex(const InterpolatedIndex& index) const {
  *  double offset = 0.0;
  * };
  * **/
-InterpolatedIndex Path:: - GetIndexFromS(double s) const {
+InterpolatedIndex Path::GetIndexFromS(double s) const {
   if (s <= 0.0) {
     return {0, 0.0};
   }

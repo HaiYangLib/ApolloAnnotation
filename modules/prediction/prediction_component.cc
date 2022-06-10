@@ -184,6 +184,7 @@ bool PredictionComponent::ContainerSubmoduleProcess(
 
 bool PredictionComponent::PredictionEndToEndProc(
     const std::shared_ptr<PerceptionObstacles>& perception_obstacles) {
+  // DEFINE_bool(prediction_test_mode, false, "Set prediction to test mode");    
   if (FLAGS_prediction_test_mode &&
       (Clock::NowInSeconds() - component_start_time_ >
        FLAGS_prediction_test_duration)) {
@@ -249,6 +250,7 @@ bool PredictionComponent::PredictionEndToEndProc(
   MessageProcess::OnPerception(
       perception_msg, container_manager_, evaluator_manager_.get(),
       predictor_manager_.get(), scenario_manager_.get(), &prediction_obstacles);
+
   auto end_time4 = std::chrono::system_clock::now();
   diff = end_time4 - end_time3;
   ADEBUG << "Time for updating PerceptionContainer: " << diff.count() * 1000
@@ -266,6 +268,7 @@ bool PredictionComponent::PredictionEndToEndProc(
 
   prediction_obstacles.set_perception_error_code(perception_msg.error_code());
 
+  // DEFINE_bool(prediction_test_mode, false, "Set prediction to test mode");
   if (FLAGS_prediction_test_mode) {
     for (auto const& prediction_obstacle :
          prediction_obstacles.prediction_obstacle()) {

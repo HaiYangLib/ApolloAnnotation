@@ -22,6 +22,7 @@ namespace apollo {
 namespace prediction {
 
 void ScenarioManager::Run(ContainerManager* container_manager) {
+  // 提取当前环境信息，包括所在车道及相邻车道
   auto environment_features =
       FeatureExtractor::ExtractEnvironmentFeatures(container_manager);
 

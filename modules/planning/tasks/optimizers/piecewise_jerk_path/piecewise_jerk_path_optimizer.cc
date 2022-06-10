@@ -81,6 +81,14 @@ common::Status PiecewiseJerkPathOptimizer::Process(
                            : config_.piecewise_jerk_path_optimizer_config()
                                  .default_path_config();
 
+  /**
+   *  modules\planning\conf\planning_config.pb.txt
+   *  l_weight: 1.0
+      dl_weight: 20.0
+      ddl_weight: 1000.0
+      dddl_weight: 50000.0
+   * 
+   * **/
   std::array<double, 5> w = {
       config.l_weight(),
       config.dl_weight() *
@@ -303,6 +311,7 @@ bool PiecewiseJerkPathOptimizer::OptimizePath(
   auto start_time = std::chrono::system_clock::now();
 
   piecewise_jerk_problem.set_x_bounds(lat_boundaries);
+  // lateral_derivative_bound_default:2.0
   piecewise_jerk_problem.set_dx_bounds(-FLAGS_lateral_derivative_bound_default,
                                        FLAGS_lateral_derivative_bound_default);
   piecewise_jerk_problem.set_ddx_bounds(ddl_bounds);

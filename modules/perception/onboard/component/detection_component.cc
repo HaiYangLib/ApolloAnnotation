@@ -85,7 +85,7 @@ bool DetectionComponent::Proc(
         << " current timestamp: " << Clock::NowInSeconds();
 
   /**
-   * LidarFrameMessage在下面文件中定义
+   * LidarFrameMessage 在下面文件中定义
    * modules/perception/onboard/component/lidar_inner_component_messages.h
    * 
    * 其中一个比较重要的成员变量
@@ -93,15 +93,13 @@ bool DetectionComponent::Proc(
    * 
    * lidar::LidarFrame在下面文件中定义
    * modules/perception/lidar/common/lidar_frame.h
-   * 
-   * 
    * **/
   auto out_message = std::make_shared<LidarFrameMessage>();
 
   bool status = InternalProc(message, out_message);
 
   /**
-   * std::shared_ptr<drivers::PointCloud>& message是输入原始点云
+   * std::shared_ptr<drivers::PointCloud>& message 是输入原始点云
    *
    * 经过一系列是筛选和detect后
    * 结果保存在out_message中

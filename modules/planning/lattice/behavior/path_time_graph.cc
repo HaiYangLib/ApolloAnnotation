@@ -396,6 +396,7 @@ std::vector<std::pair<double, double>> PathTimeGraph::GetLateralBounds(
       bounds[i].second = 0.0;
     }
   }
+
   return bounds;
 }
 
@@ -412,6 +413,7 @@ void PathTimeGraph::UpdateLateralBoundsByObstacle(
       discretized_path.begin(), discretized_path.end(), sl_boundary.start_s());
   size_t start_index = start_iter - discretized_path.begin();
   size_t end_index = end_iter - discretized_path.begin();
+  
   if (sl_boundary.end_l() > -FLAGS_numerical_epsilon &&
       sl_boundary.start_l() < FLAGS_numerical_epsilon) {
     for (size_t i = start_index; i < end_index; ++i) {

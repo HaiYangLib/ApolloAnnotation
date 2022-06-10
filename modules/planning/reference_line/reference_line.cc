@@ -77,12 +77,14 @@ bool ReferenceLine::Stitch(const ReferenceLine& other) {
     AWARN << "The other reference line is empty.";
     return true;
   }
+  
   auto first_point = reference_points_.front();
   common::SLPoint first_sl;
   if (!other.XYToSL(first_point, &first_sl)) {
     AWARN << "Failed to project the first point to the other reference line.";
     return false;
   }
+
   bool first_join = first_sl.s() > 0 && first_sl.s() < other.Length();
 
   auto last_point = reference_points_.back();

@@ -121,6 +121,11 @@ bool CruiseMLPEvaluator::Evaluate(Obstacle* obstacle_ptr,
     }
 
     std::vector<torch::jit::IValue> torch_inputs;
+    /**
+     * OBSTACLE_FEATURE_SIZE = 23 + 5 * 9
+     * SINGLE_LANE_FEATURE_SIZE = 4
+     * LANE_POINTS_SIZE = 20
+     * **/
     int input_dim = static_cast<int>(
         OBSTACLE_FEATURE_SIZE + SINGLE_LANE_FEATURE_SIZE * LANE_POINTS_SIZE);
     torch::Tensor torch_input = torch::zeros({1, input_dim});
@@ -147,7 +152,9 @@ void CruiseMLPEvaluator::ExtractFeatureValues(
 
   // Extract obstacle related features.
   std::vector<double> obstacle_feature_values;
+  // 提取障碍物特征
   SetObstacleFeatureValues(obstacle_ptr, &obstacle_feature_values);
+  // OBSTACLE_FEATURE_SIZE = 23 + 5 * 9
   if (obstacle_feature_values.size() != OBSTACLE_FEATURE_SIZE) {
     ADEBUG << "Obstacle [" << id << "] has fewer than "
            << "expected obstacle feature_values "
@@ -160,7 +167,9 @@ void CruiseMLPEvaluator::ExtractFeatureValues(
 
   // Extract lane related features.
   std::vector<double> lane_feature_values;
+  // 提取车道特征,每个点有四个特征(相对位置，相对角度等)
   SetLaneFeatureValues(obstacle_ptr, lane_sequence_ptr, &lane_feature_values);
+  // SINGLE_LANE_FEATURE_SIZE = 4; LANE_POINTS_SIZE = 20; 
   if (lane_feature_values.size() !=
       SINGLE_LANE_FEATURE_SIZE * LANE_POINTS_SIZE) {
     ADEBUG << "Obstacle [" << id << "] has fewer than "
@@ -178,6 +187,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
   // Sanity checks and variable declarations.
   CHECK_NOTNULL(obstacle_ptr);
   feature_values->clear();
+  // OBSTACLE_FEATURE_SIZE = 23 + 5 * 9
   feature_values->reserve(OBSTACLE_FEATURE_SIZE);
   std::vector<double> thetas;
   std::vector<double> lane_ls;
@@ -187,6 +197,8 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
   std::vector<double> speeds;
   std::vector<double> timestamps;
 
+  // 5*9
+  // cruise_historical_frame_length:5
   std::vector<double> has_history(FLAGS_cruise_historical_frame_length, 1.0);
   std::vector<std::pair<double, double>> pos_history(
       FLAGS_cruise_historical_frame_length, std::make_pair(0.0, 0.0));
@@ -224,6 +236,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
     if (!feature.has_lane()) {
       ADEBUG << "Feature has no lane. Quit.";
     }
+    
     // These are for the old 23 features.
     if (feature.has_lane() && feature.lane().has_lane_feature()) {
       thetas.push_back(feature.lane().lane_feature().angle_diff());
@@ -241,13 +254,16 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
     }
 
     // These are for the new features based on the relative coord. system.
+    // cruise_historical_frame_length:5
     if (i >= FLAGS_cruise_historical_frame_length) {
       continue;
     }
+    
     if (i != 0 && has_history[i - 1] == 0.0) {
       has_history[i] = 0.0;
       continue;
     }
+
     if (feature.has_position()) {
       pos_history[i] = WorldCoordToObjCoord(
           std::make_pair(feature.position().x(), feature.position().y()),
@@ -255,6 +271,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
     } else {
       has_history[i] = 0.0;
     }
+
     if (feature.has_velocity()) {
       auto vel_end = WorldCoordToObjCoord(
           std::make_pair(feature.velocity().x(), feature.velocity().y()),
@@ -266,6 +283,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
     } else {
       has_history[i] = 0.0;
     }
+
     if (feature.has_acceleration()) {
       auto acc_end =
           WorldCoordToObjCoord(std::make_pair(feature.acceleration().x(),
@@ -278,6 +296,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
     } else {
       has_history[i] = 0.0;
     }
+
     if (feature.has_velocity_heading()) {
       vel_heading_history[i] =
           WorldAngleToObjAngle(feature.velocity_heading(), obs_curr_heading);
@@ -291,6 +310,7 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
       has_history[i] = 0.0;
     }
   }
+  
   if (count <= 0) {
     ADEBUG << "There is no feature with lane info. Quit.";
     return;
@@ -394,6 +414,11 @@ void CruiseMLPEvaluator::SetObstacleFeatureValues(
   feature_values->push_back(lane_types.front() == 2 ? 1.0 : 0.0);
   feature_values->push_back(lane_types.front() == 3 ? 1.0 : 0.0);
 
+  /**
+   * DEFINE_uint64(cruise_historical_frame_length, 5,
+              "The number of historical frames of the obstacle"
+              "that the cruise model will look at.");
+   * **/
   for (std::size_t i = 0; i < FLAGS_cruise_historical_frame_length; i++) {
     feature_values->push_back(has_history[i]);
     feature_values->push_back(pos_history[i].first);
@@ -465,11 +490,16 @@ void CruiseMLPEvaluator::SetInteractionFeatureValues(
   }
 }
 
+/**
+ * 获取车道特征20个点
+ * 每个点有4个特征
+ * **/
 void CruiseMLPEvaluator::SetLaneFeatureValues(
     const Obstacle* obstacle_ptr, const LaneSequence* lane_sequence_ptr,
     std::vector<double>* feature_values) {
   // Sanity checks.
   feature_values->clear();
+  // 4*20
   feature_values->reserve(SINGLE_LANE_FEATURE_SIZE * LANE_POINTS_SIZE);
   const Feature& feature = obstacle_ptr->latest_feature();
   if (!feature.IsInitialized()) {
@@ -491,6 +521,7 @@ void CruiseMLPEvaluator::SetLaneFeatureValues(
           SINGLE_LANE_FEATURE_SIZE * LANE_POINTS_SIZE) {
         break;
       }
+      
       const LanePoint& lane_point = lane_segment.lane_point(j);
       if (!lane_point.has_position()) {
         AERROR << "Lane point has no position.";
@@ -501,6 +532,7 @@ void CruiseMLPEvaluator::SetLaneFeatureValues(
           std::make_pair(lane_point.position().x(), lane_point.position().y()),
           std::make_pair(feature.position().x(), feature.position().y()),
           heading);
+
       double relative_ang = WorldAngleToObjAngle(lane_point.heading(), heading);
 
       feature_values->push_back(relative_s_l.second);

@@ -160,12 +160,15 @@ bool Frame::CreateReferenceLineInfo(
     const std::list<ReferenceLine> &reference_lines,
     const std::list<hdmap::RouteSegments> &segments) {
   reference_line_info_.clear();
+
   auto ref_line_iter = reference_lines.begin();
   auto segments_iter = segments.begin();
+  // 步骤1：构造ReferenceLineInfo
   while (ref_line_iter != reference_lines.end()) {
     if (segments_iter->StopForDestination()) {
       is_near_destination_ = true;
     }
+
     reference_line_info_.emplace_back(vehicle_state_, planning_start_point_,
                                       *ref_line_iter, *segments_iter);
     ++ref_line_iter;
@@ -191,6 +194,7 @@ bool Frame::CreateReferenceLineInfo(
 
   bool has_valid_reference_line = false;
   for (auto &ref_info : reference_line_info_) {
+    // 步骤2：初始化ReferenceLineInfo
     if (!ref_info.Init(obstacles())) {
       AERROR << "Failed to init reference line";
     } else {
@@ -383,7 +387,7 @@ Status Frame::InitFrameData(
     AlignPredictionTime(vehicle_state_.timestamp(), &prediction);
     local_view_.prediction_obstacles->CopyFrom(prediction);
   }
-
+  // 创建planning::Obstacle障碍物，并存储于obstacles_
   for (auto &ptr :
        Obstacle::CreateObstacles(*local_view_.prediction_obstacles)) {
     AddObstacle(*ptr);
@@ -400,8 +404,10 @@ Status Frame::InitFrameData(
     }
   }
 
+  // 获取获取local_view_.traffic_light保存在traffic_lights_
   ReadTrafficLights();
-
+  // 获取local_view_.pad_msg 保存在pad_msg_driving_action_
+  // pad_msg.action用来确定场景类型
   ReadPadMsgDrivingAction();
 
   return Status::OK();
@@ -494,6 +500,7 @@ void Frame::AddObstacle(const Obstacle &obstacle) {
   obstacles_.Add(obstacle.Id(), obstacle);
 }
 
+// 获取traffic_light保存在traffic_lights_
 void Frame::ReadTrafficLights() {
   traffic_lights_.clear();
 

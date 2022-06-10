@@ -34,8 +34,8 @@
 #include "modules/planning/tasks/deciders/decider.h"
 
 namespace apollo {
-namespace planning {
 
+namespace planning {
 constexpr double kPathBoundsDeciderHorizon = 100.0;
 constexpr double kPathBoundsDeciderResolution = 0.5;
 constexpr double kDefaultLaneWidth = 5.0;

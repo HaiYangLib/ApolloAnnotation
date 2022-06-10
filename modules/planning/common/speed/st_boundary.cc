@@ -126,7 +126,7 @@ bool STBoundary::GetUnblockSRange(const double curr_time, double* s_upper,
   CHECK_NOTNULL(s_upper);
   CHECK_NOTNULL(s_lower);
 
-  *s_upper = FLAGS_speed_lon_decision_horizon;
+  *s_upper = FLAGS_speed_lon_decision_horizon; //200
   *s_lower = 0.0;
   if (curr_time < min_t_ || curr_time > max_t_) {
     return true;

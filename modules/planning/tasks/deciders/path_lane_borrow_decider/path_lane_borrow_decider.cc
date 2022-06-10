@@ -66,8 +66,10 @@ bool PathLaneBorrowDecider::IsNecessaryToBorrowLane(
   auto* mutable_path_decider_status = injector_->planning_context()
                                           ->mutable_planning_status()
                                           ->mutable_path_decider();
+  // 如果当前处于借道场景中                                        
   if (mutable_path_decider_status->is_in_path_lane_borrow_scenario()) {
-    // If originally borrowing neighbor lane:
+    // 根据数值优化求解轨迹后的信息计算是否退出借道场景（如：避让输出轨迹无解时退出借道），
+    // 滤波周期为6
     if (mutable_path_decider_status->able_to_use_self_lane_counter() >= 6) {
       // If have been able to use self-lane for some time, then switch to
       // non-lane-borrowing.
@@ -75,11 +77,19 @@ bool PathLaneBorrowDecider::IsNecessaryToBorrowLane(
       mutable_path_decider_status->clear_decided_side_pass_direction();
       AINFO << "Switch from LANE-BORROW path to SELF-LANE path.";
     }
-  } else {
+  } else { // 如果当前不处于借道场景中
     // If originally not borrowing neighbor lane:
     ADEBUG << "Blocking obstacle ID["
            << mutable_path_decider_status->front_static_obstacle_id() << "]";
     // ADC requirements check for lane-borrowing:
+
+    // 当下面这些条件必须全部满足，才能借道:
+    // 只有一条参考线，才能借道
+    // 起点速度小于最大借道允许速度
+    // 阻塞障碍物必须远离路口
+    // 阻塞障碍物会一直存在
+    // 阻塞障碍物与终点位置满足要求
+    // 为可侧面通过的障碍物
     if (!HasSingleReferenceLine(frame)) {
       return false;
     }

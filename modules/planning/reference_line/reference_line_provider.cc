@@ -655,6 +655,7 @@ bool ReferenceLineProvider::CreateReferenceLine(
   /**
    * 调用
    * pnc_map_->GetRouteSegments(vehicle_state, segments)
+   * 根据当前主车的位置，去查询无人驾驶汽车可以行使的车道段(Passage && LaneSegment)
    * **/
   if (!CreateRouteSegments(vehicle_state, segments)) {
     AERROR << "Failed to create reference line from routing";

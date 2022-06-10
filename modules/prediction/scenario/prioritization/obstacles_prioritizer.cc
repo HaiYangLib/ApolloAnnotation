@@ -115,6 +115,7 @@ void ObstaclesPrioritizer::AssignIgnoreLevel() {
   ADEBUG << "Get pose (" << ego_x << ", " << ego_y << ", " << ego_theta << ")";
 
   // Build rectangular scan_area
+  // scan_length: 80.0, scan_width:12.0
   Box2d scan_box({ego_x + FLAGS_scan_length / 2.0 * std::cos(ego_theta),
                   ego_y + FLAGS_scan_length / 2.0 * std::sin(ego_theta)},
                  ego_theta, FLAGS_scan_length, FLAGS_scan_width);
@@ -144,8 +145,11 @@ void ObstaclesPrioritizer::AssignIgnoreLevel() {
         obstacle_x, obstacle_y, pedestrian_like_nearby_lane_radius);
 
     // Decide if we need consider this obstacle
+    // 在扫面范围内(车前方80米内，左右6米)
     bool is_in_scan_area = scan_box.IsPointIn({obstacle_x, obstacle_y});
+    // 在车道上
     bool is_on_lane = obstacle_ptr->IsOnLane();
+    // 在主车前方
     bool is_pedestrian_like_in_front_near_lanes =
         s > FLAGS_back_dist_ignore_ped &&
         (latest_feature_ptr->type() == PerceptionObstacle::PEDESTRIAN ||
@@ -153,6 +157,7 @@ void ObstaclesPrioritizer::AssignIgnoreLevel() {
          latest_feature_ptr->type() == PerceptionObstacle::UNKNOWN ||
          latest_feature_ptr->type() == PerceptionObstacle::UNKNOWN_MOVABLE) &&
         is_near_lane;
+    // 在交叉路口处    
     bool is_near_junction = obstacle_ptr->IsNearJunction();
 
     bool need_consider = is_in_scan_area || is_on_lane || is_near_junction ||
@@ -190,16 +195,19 @@ void ObstaclesPrioritizer::AssignCautionLevel() {
   auto storytelling_container =
       container_manager_->GetContainer<StoryTellingContainer>(
           AdapterConfig::STORYTELLING);
+  // junction_distance_threshold:10.0        
   if (storytelling_container->ADCDistanceToJunction() <
       FLAGS_junction_distance_threshold) {
     AssignCautionLevelInJunction(*ego_vehicle, obstacles_container,
                                  storytelling_container->ADCJunctionId());
   }
+
   AssignCautionLevelCruiseKeepLane(*ego_vehicle, obstacles_container);
   AssignCautionLevelCruiseChangeLane(*ego_vehicle, obstacles_container);
   AssignCautionLevelByEgoReferenceLine(*ego_vehicle, obstacles_container);
   AssignCautionLevelPedestrianByEgoReferenceLine(*ego_vehicle,
                                                  obstacles_container);
+  // enable_all_pedestrian_caution_in_fron:false                                                
   if (FLAGS_enable_all_pedestrian_caution_in_front) {
     AssignCautionLevelPedestrianInFront(*ego_vehicle, obstacles_container);
   }

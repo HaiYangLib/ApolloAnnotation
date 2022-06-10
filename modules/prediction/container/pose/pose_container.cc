@@ -55,7 +55,7 @@ void PoseContainer::Update(
     obstacle_ptr_.reset(new PerceptionObstacle());
   }
   obstacle_ptr_->Clear();
-
+  // DEFINE_int32(ego_vehicle_id, -1, "The obstacle ID of the ego vehicle.");
   obstacle_ptr_->set_id(FLAGS_ego_vehicle_id);
   Point position;
   position.set_x(localization.pose().position().x());

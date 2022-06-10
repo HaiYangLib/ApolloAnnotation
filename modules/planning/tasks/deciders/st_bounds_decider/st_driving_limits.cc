@@ -28,6 +28,7 @@ void STDrivingLimits::Init(const double max_acc, const double max_dec,
   max_acc_ = max_acc;
   max_dec_ = max_dec;
   max_v_ = max_v;
+  
   upper_t0_ = 0.0;
   upper_v0_ = curr_v;
   upper_s0_ = 0.0;

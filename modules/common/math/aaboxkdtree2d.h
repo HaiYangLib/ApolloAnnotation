@@ -404,6 +404,7 @@ class AABoxKDTree2dNode {
     PARTITION_X = 1,
     PARTITION_Y = 2,
   };
+  
   Partition partition_ = PARTITION_X;
   double partition_position_ = 0.0;
 

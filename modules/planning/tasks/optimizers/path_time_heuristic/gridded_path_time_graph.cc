@@ -95,6 +95,7 @@ GriddedPathTimeGraph::GriddedPathTimeGraph(
   max_acceleration_ =
       std::min(std::abs(vehicle_param_.max_acceleration()),
                std::abs(gridded_path_time_graph_config_.max_acceleration()));
+  // max_deceleration_: 2.5         
   max_deceleration_ =
       -1.0 *
       std::min(std::abs(vehicle_param_.max_deceleration()),
@@ -152,6 +153,8 @@ Status GriddedPathTimeGraph::Search(SpeedData* const speed_data) {
 }
 
 Status GriddedPathTimeGraph::InitCostTable() {
+  // 时间维度是均匀的，而空间维度有两种分辨率
+  // 稠密和稀疏，在空间范围内，稠密分辨率居首位
   // Time dimension is homogeneous while Spatial dimension has two resolutions,
   // dense and sparse with dense resolution coming first in the spatial horizon
 
@@ -174,10 +177,11 @@ Status GriddedPathTimeGraph::InitCostTable() {
                      total_length_t_ / static_cast<double>(unit_t_))) +
                  1;
 
-  // dense_unit_s_:0.1
+  // dense_unit_s_:0.1`
   double sparse_length_s =
       total_length_s_ -
       static_cast<double>(dense_dimension_s_ - 1) * dense_unit_s_;
+      
   // sparse_unit_s_:1.0
   sparse_dimension_s_ =
       sparse_length_s > std::numeric_limits<double>::epsilon()
@@ -257,9 +261,6 @@ Status GriddedPathTimeGraph::CalculateTotalCost() {
   size_t next_lowest_row = 0;
 
   for (size_t c = 0; c < cost_table_.size(); ++c) {
-    size_t highest_row = 0;
-    size_t lowest_row = cost_table_.back().size() - 1;
-
     int count = static_cast<int>(next_highest_row) -
                 static_cast<int>(next_lowest_row) + 1;
 
@@ -283,6 +284,8 @@ Status GriddedPathTimeGraph::CalculateTotalCost() {
       }
     }
 
+    size_t highest_row = 0;
+    size_t lowest_row = cost_table_.back().size() - 1;
     for (size_t r = next_lowest_row; r <= next_highest_row; ++r) {
       const auto& cost_cr = cost_table_[c][r];
       if (cost_cr.total_cost() < std::numeric_limits<double>::infinity()) {
@@ -373,7 +376,6 @@ void GriddedPathTimeGraph::CalculateCostAt(
   const double min_s_consider_speed = dense_unit_s_ * dimension_t_;
 
   if (c == 1) {
-    // 
     const double acc =
         2 * (cost_cr.point().s() / unit_t_ - init_point_.v()) / unit_t_;
     if (acc < max_deceleration_ || acc > max_acceleration_) {

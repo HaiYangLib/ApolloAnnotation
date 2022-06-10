@@ -44,21 +44,25 @@ void CruiseScenarioFeatures::InsertLaneOfInterest(const std::string& lane_id) {
   lane_ids_of_interest_.insert(lane_id);
 }
 
+// 找到需要的车道的id，并保存
 void CruiseScenarioFeatures::BuildCruiseScenarioFeatures(
     const EnvironmentFeatures& environment_features) {
   // Forward lanes
+  // 当前车道
   if (environment_features.has_ego_lane()) {
     auto ego_lane = environment_features.GetEgoLane();
     const std::string& ego_lane_id = ego_lane.first;
     double ego_lane_s = ego_lane.second;
     SearchForwardAndInsert(ego_lane_id, ego_lane_s, 50.0);
   }
+  // 左车道
   if (environment_features.has_left_neighbor_lane()) {
     auto left_lane = environment_features.GetLeftNeighborLane();
     const std::string& left_lane_id = left_lane.first;
     double left_lane_s = left_lane.second;
     SearchForwardAndInsert(left_lane_id, left_lane_s, 50.0);
   }
+  // 右车道
   if (environment_features.has_right_neighbor_lane()) {
     auto right_lane = environment_features.GetRightNeighborLane();
     const std::string& right_lane_id = right_lane.first;
@@ -72,9 +76,11 @@ void CruiseScenarioFeatures::BuildCruiseScenarioFeatures(
   if (reverse_lane_ids.empty()) {
     ADEBUG << "No reverse lane considered";
   }
+
   for (const std::string& reverse_lane_id : reverse_lane_ids) {
     lane_ids_of_interest_.insert(reverse_lane_id);
   }
+
   for (const std::string& reverse_lane_id : reverse_lane_ids) {
     std::shared_ptr<const LaneInfo> reverse_lane_info =
         PredictionMap::LaneById(reverse_lane_id);
@@ -84,6 +90,7 @@ void CruiseScenarioFeatures::BuildCruiseScenarioFeatures(
   }
 }
 
+// 向前查找一定范围内的车道，并保存其id
 void CruiseScenarioFeatures::SearchForwardAndInsert(
     const std::string& start_lane_id, const double start_lane_s,
     const double range) {

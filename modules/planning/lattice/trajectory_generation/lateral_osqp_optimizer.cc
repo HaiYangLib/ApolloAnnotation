@@ -51,7 +51,7 @@ bool LateralOSQPOptimizer::optimize(
   const int prime_offset = num_var;       // dl
   const int pprime_offset = 2 * num_var;  // ddl
 
-  std::vector<std::vector<std::pair<c_int, c_float>>> columns;
+  std::vector<std::vector<std::pair<c_int, c_float>>> columns; //用来创建A矩阵
   columns.resize(kNumParam);
 
   int constraint_index = 0;
@@ -161,7 +161,7 @@ bool LateralOSQPOptimizer::optimize(
   for (int i = 0; i < kNumParam; ++i) {
     if (i < num_var) {
       /**
-       *    DEFINE_double(
+       * DEFINE_double(
          weight_lateral_obstacle_distance, 0.0,
          "weight for lateral obstacle distance in lateral trajectory
        optimization");

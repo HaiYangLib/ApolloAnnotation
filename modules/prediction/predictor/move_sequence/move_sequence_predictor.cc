@@ -93,6 +93,8 @@ bool MoveSequencePredictor::Predict(
     }
 
     if (is_about_to_stop) {
+      // prediction_trajectory_time_length:8
+      // prediction_trajectory_time_resolution:0.1
       DrawConstantAccelerationTrajectory(
           *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
           FLAGS_prediction_trajectory_time_resolution, acceleration, &points);
@@ -136,6 +138,7 @@ bool MoveSequencePredictor::DrawMoveSequenceTrajectoryPoints(
 
   // Fit the lateral and longitudinal polynomials.
   Eigen::Vector2d position(feature.position().x(), feature.position().y());
+  // default_time_to_lat_end_state:5
   double time_to_lat_end_state =
       std::max(FLAGS_default_time_to_lat_end_state,
                ComputeTimeToLatEndConditionByVelocity(obstacle, lane_sequence));

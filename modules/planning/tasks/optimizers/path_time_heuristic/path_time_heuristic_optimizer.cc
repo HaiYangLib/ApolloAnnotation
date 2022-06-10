@@ -35,7 +35,8 @@ using apollo::common::Status;
 PathTimeHeuristicOptimizer::PathTimeHeuristicOptimizer(const TaskConfig& config)
     : SpeedOptimizer(config) {
   ACHECK(config.has_speed_heuristic_optimizer_config());
-  // modules/planning/conf/planning_config.pb.txt中的speed_heuristic_optimizer_config
+  // modules/planning/conf/planning_config.pb.txt
+  // 中的speed_heuristic_optimizer_config
   speed_heuristic_optimizer_config_ = config.speed_heuristic_optimizer_config();
 }
 

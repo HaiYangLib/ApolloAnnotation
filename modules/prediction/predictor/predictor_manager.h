@@ -155,7 +155,7 @@ class PredictorManager {
       ObstacleConf::LANE_SEQUENCE_PREDICTOR;
 
   ObstacleConf::PredictorType cyclist_on_lane_predictor_ =
-      ObstacleConf::LANE_SEQUENCE_PREDICTOR;
+      ObstacleConf::;
 
   ObstacleConf::PredictorType cyclist_off_lane_predictor_ =
       ObstacleConf::FREE_MOVE_PREDICTOR;

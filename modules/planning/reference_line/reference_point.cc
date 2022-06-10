@@ -35,6 +35,14 @@ ReferencePoint::ReferencePoint(const MapPathPoint& map_path_point,
                                const double kappa, const double dkappa)
     : hdmap::MapPathPoint(map_path_point), kappa_(kappa), dkappa_(dkappa) {}
 
+/**
+ * static inline PathPoint ToPathPoint(const double x, const double y,
+                                      const double z = 0, const double s = 0,
+                                      const double theta = 0,
+                                      const double kappa = 0,
+                                      const double dkappa = 0,
+                                      const double ddkappa = 0)
+ * **/
 common::PathPoint ReferencePoint::ToPathPoint(double s) const {
   return common::util::PointFactory::ToPathPoint(x(), y(), 0.0, s, heading(),
                                                  kappa_, dkappa_);

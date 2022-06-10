@@ -151,6 +151,7 @@ bool LineSegment2d::IsPointIn(const Vec2d &point) const {
          IsWithin(point.y(), start_.y(), end_.y());
 }
 
+// 内积是投影
 double LineSegment2d::ProjectOntoUnit(const Vec2d &point) const {
   return unit_direction_.InnerProd(point - start_);
 }

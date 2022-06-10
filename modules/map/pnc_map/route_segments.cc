@@ -277,7 +277,7 @@ bool RouteSegments::GetWaypoint(const double s, LaneWaypoint *waypoint) const {
 }
 
 
-// 注意这个s是投影点在passage段起点的累计距离
+
 bool RouteSegments::GetProjection(const common::math::Vec2d &point,
                                   common::SLPoint *sl_point,
                                   LaneWaypoint *waypoint) const {

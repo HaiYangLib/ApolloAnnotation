@@ -108,6 +108,7 @@ Status RoadGraph::BuildLaneGraph(LaneGraph* const lane_graph_ptr) {
   // Run the recursive function to perform DFS.
   std::list<LaneSegment> lane_segments;
   double accumulated_s = 0.0;
+  // road_graph_max_search_horizon:20
   ConstructLaneSequence(accumulated_s, start_s_, lane_info_ptr_,
                         FLAGS_road_graph_max_search_horizon, consider_divide_,
                         &lane_segments, lane_graph_ptr);
@@ -206,7 +207,7 @@ void RoadGraph::ConstructLaneSequence(
                         graph_search_horizon, consider_lane_split,
                         lane_segments, lane_graph_ptr);
 }
-
+// 递归的调用，建立车道网
 void RoadGraph::ConstructLaneSequence(
     const bool search_forward_direction, const double accumulated_s,
     const double curr_lane_seg_s, std::shared_ptr<const LaneInfo> lane_info_ptr,
@@ -235,6 +236,7 @@ void RoadGraph::ConstructLaneSequence(
   lane_segment.set_total_length(lane_info_ptr->total_length());
   if (search_forward_direction) {
     lane_segment.set_start_s(curr_s);
+    // 总长(length_)- 累计(accumulated_s)=还需要的长度
     lane_segment.set_end_s(std::fmin(curr_s + length_ - accumulated_s,
                                      lane_info_ptr->total_length()));
   } else {
@@ -250,6 +252,7 @@ void RoadGraph::ConstructLaneSequence(
 
   // End condition: if search reached the maximum search distance,
   // or if there is no more successor lane_segment.
+  // 递归入口
   if (search_forward_direction) {
     if (lane_segments->back().end_s() < lane_info_ptr->total_length() ||
         lane_info_ptr->lane().successor_id().empty()) {
@@ -278,6 +281,7 @@ void RoadGraph::ConstructLaneSequence(
   std::vector<std::shared_ptr<const hdmap::LaneInfo>> candidate_lanes;
   std::set<std::string> set_lane_ids;
   if (search_forward_direction) {
+    // 累计s
     new_accumulated_s = accumulated_s + lane_info_ptr->total_length() - curr_s;
     // Reundancy removal.
     for (const auto& successor_lane_id : lane_info_ptr->lane().successor_id()) {

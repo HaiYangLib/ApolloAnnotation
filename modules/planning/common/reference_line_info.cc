@@ -78,12 +78,12 @@ bool ReferenceLineInfo::Init(const std::vector<const Obstacle*>& obstacles) {
   Box2d vehicle_box(vehicle_center, vehicle_state_.heading(), param.length(),
                     param.width());
 
-  // 车辆当前位置的LBoundary
+  // 车辆当前位置的SLBoundary
   if (!reference_line_.GetSLBoundary(box, &adc_sl_boundary_)) {
     AERROR << "Failed to get ADC boundary from box: " << box.DebugString();
     return false;
   }
-
+  // 按顺序保存500米内的重叠区域
   InitFirstOverlaps();
 
   if (adc_sl_boundary_.end_s() < 0 ||
@@ -227,6 +227,7 @@ bool ReferenceLineInfo::GetNeighborLaneInfo(
   return true;
 }
 
+// 判断最近的一个重叠区域是否在kMaxOverlapRange(500米)内
 bool ReferenceLineInfo::GetFirstOverlap(
     const std::vector<hdmap::PathOverlap>& path_overlaps,
     hdmap::PathOverlap* path_overlap) {
@@ -254,6 +255,7 @@ bool ReferenceLineInfo::GetFirstOverlap(
   return overlap_min_s < kMaxOverlapRange;
 }
 
+// 按顺序保存500米内的重叠区域
 void ReferenceLineInfo::InitFirstOverlaps() {
   const auto& map_path = reference_line_.map_path();
   // clear_zone

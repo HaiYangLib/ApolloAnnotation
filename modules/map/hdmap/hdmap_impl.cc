@@ -131,6 +131,11 @@ int HDMapImpl::LoadMapFromProto(const Map& map_proto) {
       }
     }
   }
+  
+  /**
+   * LaneInfo::UpdateOverlaps(const HDMapImpl &map_instance) 
+   * 
+   * **/
   for (const auto& lane_ptr_pair : lane_table_) {
     lane_ptr_pair.second->PostProcess(*this);
   }

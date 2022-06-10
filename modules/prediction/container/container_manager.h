@@ -83,6 +83,7 @@ class ContainerManager {
   void RegisterContainer(
       const common::adapter::AdapterConfig::MessageType &type);
 
+
   /**
    * @brief Register all containers
    */

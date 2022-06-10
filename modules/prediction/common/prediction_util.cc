@@ -236,7 +236,7 @@ void TranslatePoint(const double translate_x, const double translate_y,
   point->mutable_path_point()->set_x(original_x + translate_x);
   point->mutable_path_point()->set_y(original_y + translate_y);
 }
-
+// 根据初始速度，加速度生成系列轨迹点
 void GenerateFreeMoveTrajectoryPoints(
     Eigen::Matrix<double, 6, 1>* state,
     const Eigen::Matrix<double, 6, 6>& transition, double theta,
@@ -260,6 +260,7 @@ void GenerateFreeMoveTrajectoryPoints(
       acc_y = 0.0;
       acc = 0.0;
     } else {
+      // DEFINE_double(vehicle_max_speed, 35.0, "Max speed of vehicle");
       speed = std::fmin(speed, FLAGS_vehicle_max_speed);
     }
 

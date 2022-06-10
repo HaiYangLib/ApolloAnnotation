@@ -48,12 +48,16 @@ bool FreeMovePredictor::Predict(
            << " is missing position or velocity";
     return false;
   }
-
+  // prediction_trajectory_time_length:8
   double prediction_total_time = FLAGS_prediction_trajectory_time_length;
   if (obstacle->type() == PerceptionObstacle::PEDESTRIAN) {
     prediction_total_time = FLAGS_prediction_trajectory_time_length;
   }
-
+  /**
+   * 由于PedestrianInteractionEvaluator已经预测了两秒的轨迹,且只给出了一条轨迹
+   * 所以predicted_trajectory不为空
+   * 且predicted_trajectory_size=1
+   * **/
   if (feature.predicted_trajectory().empty()) {
     std::vector<TrajectoryPoint> points;
     Eigen::Vector2d position(feature.position().x(), feature.position().y());
@@ -78,6 +82,7 @@ bool FreeMovePredictor::Predict(
         AERROR << "Empty predicted trajectory found";
         continue;
       }
+      
       std::vector<TrajectoryPoint> points;
       const TrajectoryPoint& last_point =
           trajectory->trajectory_point(traj_size - 1);
@@ -89,6 +94,8 @@ bool FreeMovePredictor::Predict(
       Eigen::Vector2d acc(last_point.a() * std::cos(theta),
                           last_point.a() * std::sin(theta));
       double last_relative_time = last_point.relative_time();
+      // FLAGS_prediction_trajectory_time_resolution:0.1
+      // 根据初始速度，加速度生成系列轨迹点
       DrawFreeMoveTrajectoryPoints(
           position, velocity, acc, theta, last_relative_time,
           prediction_total_time - last_relative_time,
@@ -103,12 +110,13 @@ bool FreeMovePredictor::Predict(
   return true;
 }
 
+// 根据初始速度，加速度生成系列轨迹点
 void FreeMovePredictor::DrawFreeMoveTrajectoryPoints(
     const Eigen::Vector2d& position, const Eigen::Vector2d& velocity,
     const Eigen::Vector2d& acc, const double theta, const double start_time,
     const double total_time, const double period,
     std::vector<TrajectoryPoint>* points) {
-  Eigen::Matrix<double, 6, 1> state;
+  Eigen::Matrix<double, 6, 1> state;//位置，速度，加速度
   state.setZero();
   state(0, 0) = 0.0;
   state(1, 0) = 0.0;

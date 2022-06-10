@@ -112,9 +112,9 @@ bool PointPillarsDetection::Init(const DetectionInitOptions& options) {
  * PointPillarsDetection的算法入口
  * 由LidarObstacleDetection调用
  *
- * 步骤1： 判断是否启用带系数的点云光束下采样。否认否
- * 步骤2： 判断启用将点云向下采样到体素网格的质心。否认否
- * 步骤3： 判断是否启用将前一帧的点云融合到当前帧中。否认否
+ * 步骤1： 判断是否启用带系数的点云光束下采样。否
+ * 步骤2： 判断启用将点云向下采样到体素网格的质心。否
+ * 步骤3： 判断是否启用将前一帧的点云融合到当前帧中。否
  * 步骤4： 判断是否在预处理之前启用洗牌点。否认否
  * 步骤5： 根据x_min_，x_max_等阈值筛选点云，同时将强度信息归一化
  * 代码：CloudToArray(cur_cloud_ptr_, points_array, FLAGS_normalizing_factor);
@@ -336,7 +336,6 @@ bool PointPillarsDetection::Detect(const DetectionOptions& options,
    * 将结果写在frame->segmented_objects中
    * 
    * **/
-  // 步骤7
   GetObjects(&frame->segmented_objects, frame->lidar2world_pose,
              &out_detections, &out_labels);
   collect_time_ = timer.toc(true);

@@ -92,6 +92,7 @@ Status STObstaclesProcessor::MapObstaclesToSTBoundaries(
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
+  
   obs_id_to_st_boundary_.clear();
 
   // Some preprocessing to save the adc_low_road_right segments.

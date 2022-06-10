@@ -85,6 +85,10 @@ void ObstaclesContainer::Insert(const ::google::protobuf::Message& message) {
       perception_obstacles.header().has_timestamp_sec()) {
     timestamp = perception_obstacles.header().timestamp_sec();
   }
+  /**
+   * DEFINE_double(replay_timestamp_gap, 10.0,
+              "Max timestamp gap for rosbag replay");
+   * **/
   if (std::fabs(timestamp - timestamp_) > FLAGS_replay_timestamp_gap) {
     ptr_obstacles_.Clear();
     ADEBUG << "Replay mode is enabled.";
@@ -94,6 +98,15 @@ void ObstaclesContainer::Insert(const ::google::protobuf::Message& message) {
     return;
   }
 
+  /**
+   * DEFINE_int32(prediction_offline_mode, 0,
+             "0: online mode, no dump file"
+             "1: dump feature proto to feature.*.bin"
+             "2: dump data for learning to datalearn.*.bin"
+             "3: dump predicted trajectory to predict_result.*.bin"
+             "4: dump frame environment info to frame_env.*.bin"
+             "5: dump data for tuning to datatuning.*.bin");
+   * **/
   switch (FLAGS_prediction_offline_mode) {
     case 1: {
       if (std::fabs(timestamp - timestamp_) > FLAGS_replay_timestamp_gap ||
@@ -139,6 +152,7 @@ void ObstaclesContainer::Insert(const ::google::protobuf::Message& message) {
     }
   }
 
+  // 更新时间戳
   timestamp_ = timestamp;
   ADEBUG << "Current timestamp is [" << std::fixed << std::setprecision(6)
          << timestamp_ << "]";
@@ -221,6 +235,9 @@ void ObstaclesContainer::InsertPerceptionObstacle(
     const PerceptionObstacle& perception_obstacle, const double timestamp) {
   // Sanity checks.
   int id = perception_obstacle.id();
+  /**
+   * DEFINE_int32(ego_vehicle_id, -1, "The obstacle ID of the ego vehicle.");
+   * **/
   if (id < FLAGS_ego_vehicle_id) {
     AERROR << "Invalid ID [" << id << "]";
     return;
@@ -237,9 +254,10 @@ void ObstaclesContainer::InsertPerceptionObstacle(
   if (obstacle_ptr != nullptr) {
     ADEBUG << "Current time = " << std::fixed << std::setprecision(6)
            << timestamp;
+    // 将该障碍物的特征(当前位置,所在车道)插入到历史队列中      
     obstacle_ptr->Insert(perception_obstacle, timestamp, id);
     ADEBUG << "Refresh obstacle [" << id << "]";
-  } else {
+  } else { // 该id的障碍物第一次出现，在创建将其插入到LRU中
     auto ptr_obstacle =
         Obstacle::Create(perception_obstacle, timestamp, id, clusters_.get());
     if (ptr_obstacle == nullptr) {
@@ -375,6 +393,7 @@ const Scenario& ObstaclesContainer::curr_scenario() const {
 ObstacleClusters* ObstaclesContainer::GetClustersPtr() const {
   return clusters_.get();
 }
+
 JunctionAnalyzer* ObstaclesContainer::GetJunctionAnalyzer() {
   return &junction_analyzer_;
 }

@@ -213,8 +213,8 @@ void Polygon2d::BuildFromPoints() {
   CHECK_GT(area_, kMathEpsilon);
 
   // Construct line_segments.
-  line_segments_.reserve(num_points_);
   for (int i = 0; i < num_points_; ++i) {
+  line_segments_.reserve(num_points_);
     line_segments_.emplace_back(points_[i], points_[Next(i)]);
   }
 
