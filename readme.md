@@ -1,3 +1,5 @@
+
+
 * 该项目**基于百度Apollo**对自动驾驶各个模块分别介绍: 
 
   **坐标转换，感知，预测，高精地图及导航，决策规划，运动控制，车辆动力学**
@@ -109,7 +111,7 @@
 
   完成了**Cyber的cmake版移植**，详细代码见**cyber_cmake**
 
-  提供了Cyber所需的第三方库的安装脚本,在thritd_party目录下
+  提供了Cyber所需的第三方库的安装脚本,在third_party目录下
 
   [Transform篇](#Transform篇)
 
